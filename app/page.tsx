@@ -399,7 +399,7 @@ export default function SnoServiceLanding() {
         </div>
 
         <div className="max-w-6xl mx-auto pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
-          <p>© {new Date().getFullYear()} snoservice. Todos los derechos reservados.</p>
+          <p>© 2026 snoservice. Todos los derechos reservados.</p>
           <p>Montevideo, Uruguay 🇺🇾</p>
         </div>
       </footer>
