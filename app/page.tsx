@@ -14,7 +14,7 @@ function SnoLogo({ className = "w-10 h-10" }: { className?: string }) {
   return (
     <div className={`relative flex items-center justify-center rounded-xl bg-gradient-to-br from-white/[0.06] to-white/[0.01] border border-white/[0.1] p-1.5 shadow-[0_0_20px_rgba(6,182,212,0.15)] shrink-0 group-hover:border-emerald-500/40 transition duration-300 ${className}`}>
       <img 
-        src="/logo.svg" 
+        src="/logo.png" 
         alt="snoservice logo" 
         className="w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(34,211,238,0.25)]"
       />
