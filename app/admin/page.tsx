@@ -1,3 +1,5 @@
+export const instant = false
+
 import { connection } from 'next/server'
 import Image from 'next/image'
 import { centralLogout } from './actions'
