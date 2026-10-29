@@ -3,6 +3,26 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 /** Per-request nonce. Authentication/authorization is enforced again at the data boundary. */
 export function proxy(request: NextRequest) {
+  // Cloudflare mTLS is enforced at the canonical public hostname.
+  // Block direct alias/apex access to /admin so a different Host cannot
+  // bypass the Cloudflare device certificate gate. The server auth checks
+  // below remain mandatory on every protected route and action.
+  const canonical = process.env.CENTRAL_CANONICAL_ORIGIN
+  if (process.env.NODE_ENV === 'production') {
+    let expectedHost: string
+    try {
+      if (!canonical) throw new Error('Admin canonical hostname unavailable')
+      const url = new URL(canonical)
+      if (url.protocol !== 'https:' || url.pathname !== '/' || url.search || url.hash ||
+        url.username || url.password) throw new Error('Invalid canonical origin')
+      expectedHost = url.host.toLowerCase()
+    } catch {
+      return new NextResponse('Not found', { status: 404, headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } })
+    }
+    if ((request.headers.get('host') || '').toLowerCase() !== expectedHost) {
+      return new NextResponse('Not found', { status: 404, headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } })
+    }
+  }
   const nonce = randomBytes(16).toString('base64')
   const csp = [
     "default-src 'none'",
