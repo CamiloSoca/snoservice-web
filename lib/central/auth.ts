@@ -6,7 +6,8 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 export type Assurance = 'aal1' | 'aal2'
-export type VerifiedSession = { state: 'authenticated'; userId: string; email: string; aal: Assurance; accessToken: string }
+export type TotpFactor = { id: string; status: string; factor_type: 'totp' }
+export type VerifiedSession = { state: 'authenticated'; userId: string; email: string; aal: Assurance; accessToken: string; totpFactors: TotpFactor[] | null }
 export type SessionResult = VerifiedSession | { state: 'refresh' | 'denied' | 'unavailable' }
 type TokenPair = { access_token: string; refresh_token: string; expires_in: number }
 
@@ -88,6 +89,36 @@ function assuranceFromVerifiedJwt(jwt: string, userId: string): Assurance | null
   } catch { return null }
 }
 
+/** Parse only data that arrived over the authenticated HTTPS response from Supabase Auth. */
+function parseTotpFactors(user: any): TotpFactor[] | null {
+  const raw = user?.factors
+  if (raw === undefined || raw === null) return []
+  if (!Array.isArray(raw)) return null
+  return raw.filter((factor: any) => typeof factor?.id === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(factor.id) &&
+    factor.factor_type === 'totp') as TotpFactor[]
+}
+
+/**
+ * Password and TOTP verification endpoints return authenticated user information
+ * together with newly minted tokens. Using that trusted response avoids
+ * redundantly fetching /user immediately afterwards.
+ * Normal page/API requests still verify sessions against /user every time.
+ */
+export function sessionFromAuthResponse(value: unknown): VerifiedSession | null {
+  if (!validTokens(value)) return null
+  const record = value as TokenPair & { user?: { id?: unknown; email?: unknown; factors?: unknown } }
+  const user = record.user
+  if (typeof user?.id !== 'string' || !isAdminId(user.id)) return null
+  const aal = assuranceFromVerifiedJwt(record.access_token, user.id)
+  if (!aal) return null
+  return {
+    state: 'authenticated', userId: user.id,
+    email: typeof user.email === 'string' ? user.email : '',
+    aal, accessToken: record.access_token, totpFactors: parseTotpFactors(user),
+  }
+}
+
 export async function verifyAccessToken(token: string): Promise<VerifiedSession | null> {
   if (!settings() || !token || token.length > 12000) return null
   const result = await authApi('/user', 'GET', token)
@@ -95,7 +126,7 @@ export async function verifyAccessToken(token: string): Promise<VerifiedSession 
   if (!result.ok || typeof user?.id !== 'string' || !isAdminId(user.id)) return null
   const aal = assuranceFromVerifiedJwt(token, user.id)
   if (!aal) return null
-  return { state: 'authenticated', userId: user.id, email: typeof user.email === 'string' ? user.email : '', aal, accessToken: token }
+  return { state: 'authenticated', userId: user.id, email: typeof user.email === 'string' ? user.email : '', aal, accessToken: token, totpFactors: parseTotpFactors(user) }
 }
 
 export async function currentSession(): Promise<SessionResult> {
@@ -130,9 +161,5 @@ export async function listTotpFactors(token: string) {
   // Supabase omits "factors" when a new account has none (JSON omitempty).
   // Treat only an absent list on a verified admin user as an empty list.
   if (!res.ok || typeof res.data?.id !== 'string' || !isAdminId(res.data.id)) return null
-  const raw = res.data.factors
-  if (raw === undefined || raw === null) return []
-  if (!Array.isArray(raw)) return null
-  return raw.filter((factor: any) => typeof factor?.id === 'string' &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(factor.id) && factor.factor_type === 'totp') as Array<{ id: string; status: string; factor_type: 'totp' }>
+  return parseTotpFactors(res.data)
 }
