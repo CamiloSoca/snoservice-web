@@ -127,8 +127,11 @@ export async function requireCentralPendingMfa(): Promise<VerifiedSession> {
 export async function listTotpFactors(token: string) {
   // Supabase Auth exposes a user's factors via GET /user; GET /factors is not a supported endpoint.
   const res = await authApi('/user', 'GET', token)
-  if (!res.ok) return null
-  const raw = res.data?.factors
+  // Supabase omits "factors" when a new account has none (JSON omitempty).
+  // Treat only an absent list on a verified admin user as an empty list.
+  if (!res.ok || typeof res.data?.id !== 'string' || !isAdminId(res.data.id)) return null
+  const raw = res.data.factors
+  if (raw === undefined || raw === null) return []
   if (!Array.isArray(raw)) return null
   return raw.filter((factor: any) => typeof factor?.id === 'string' &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(factor.id) && factor.factor_type === 'totp') as Array<{ id: string; status: string; factor_type: 'totp' }>
