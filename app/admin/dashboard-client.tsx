@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Check,
-  CheckCheck, ChevronDown, ChevronRight, Command, Copy, CreditCard,
+  CheckCheck, ChevronDown, ChevronRight, Copy, CreditCard,
   ExternalLink, Fingerprint, Globe2, Keyboard, LayoutGrid, LockKeyhole,
   LogOut, Menu, PanelLeftClose, PanelLeftOpen, Search, Settings2,
   ShieldCheck, UsersRound, Workflow, X,
@@ -198,11 +198,13 @@ export default function CentralDashboardClient({ initialSection, adminEmail }: {
   const [copied, setCopied] = useState(false)
   const searchInput = useRef<HTMLInputElement>(null)
   const searchTrigger = useRef<HTMLButtonElement>(null)
+  const paletteWasOpened = useRef(false)
 
   const navigate = useCallback((next: CentralSection) => {
     setSection(next)
     setPaletteOpen(false)
     setMobileOpen(false)
+    setCopied(false)
     setQuery('')
     const path = next === 'resumen' ? '/admin' : '/admin?section=' + encodeURIComponent(next)
     if (window.location.pathname + window.location.search !== path) window.history.pushState({ snoSection: next }, '', path)
@@ -241,9 +243,10 @@ export default function CentralDashboardClient({ initialSection, adminEmail }: {
 
   useEffect(() => {
     if (paletteOpen) {
+      paletteWasOpened.current = true
       setHighlight(0)
       searchInput.current?.focus()
-    } else {
+    } else if (paletteWasOpened.current) {
       searchTrigger.current?.focus()
     }
   }, [paletteOpen])
@@ -286,7 +289,7 @@ export default function CentralDashboardClient({ initialSection, adminEmail }: {
           <span className="sc-breadcrumb-muted">Central</span><ChevronRight className="sc-crumb-arrow" size={15}/><span className="sc-breadcrumb-active">{PAGES[section]}</span>
         </div>
         <div className="sc-header-actions">
-          <button ref={searchTrigger} type="button" className="sc-search-trigger" onClick={() => setPaletteOpen(true)}><Search size={16}/><span>Buscar en Central</span><kbd>⌘ K</kbd></button>
+          <button ref={searchTrigger} type="button" className="sc-search-trigger" onClick={() => setPaletteOpen(true)}><Search size={16}/><span>Buscar en Central</span><kbd>Ctrl K</kbd></button>
           <button className="sc-icon-button sc-desktop-action" type="button" onClick={() => setFocusMode(v=>!v)} title={focusMode?'Salir de enfoque':'Modo enfoque'} aria-label={focusMode?'Salir de enfoque':'Modo enfoque'}>{focusMode ? <PanelLeftOpen size={18}/> : <PanelLeftClose size={18}/>}</button>
           <span className="sc-header-divider"/>
           <span className="sc-account-avatar" title={adminEmail}>{initial}</span>
@@ -303,7 +306,7 @@ export default function CentralDashboardClient({ initialSection, adminEmail }: {
 
     {paletteOpen && <div className="sc-palette-layer" role="presentation" onMouseDown={(e)=>{if(e.target===e.currentTarget)setPaletteOpen(false)}}>
       <div className="sc-palette" role="dialog" aria-modal="true" aria-labelledby="sc-command-title" onKeyDown={(event)=>{
-        if(event.key==='ArrowDown'){event.preventDefault();setHighlight(i=>Math.min(i+1,results.length-1))}
+        if(event.key==='ArrowDown'){event.preventDefault();setHighlight(i=>Math.max(0,Math.min(i+1,results.length-1)))}
         if(event.key==='ArrowUp'){event.preventDefault();setHighlight(i=>Math.max(i-1,0))}
         if(event.key==='Enter'&&results[highlight]){event.preventDefault();navigate(results[highlight].id)}
       }}>
