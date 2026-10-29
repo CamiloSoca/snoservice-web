@@ -1,7 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { authApi, clearTokens, currentSession, isAdminId, listTotpFactors, requireCentralPendingMfa, storeTokens, validTokens, verifyAccessToken } from '../../lib/central/auth'
+import { authApi, clearTokens, currentSession, isAdminId, requireCentralPendingMfa, sessionFromAuthResponse, storeTokens, validTokens, verifyAccessToken } from '../../lib/central/auth'
 import { assertSameOrigin, auditSecurity, validEmail, validTotp } from '../../lib/central/guard'
 
 export async function centralLogin(form: FormData) {
@@ -16,7 +16,7 @@ export async function centralLogin(form: FormData) {
     auditSecurity('login_failed')
     redirect('/admin/login?error=credentials')
   }
-  const verified = await verifyAccessToken(response.data.access_token)
+  const verified = sessionFromAuthResponse(response.data) ?? await verifyAccessToken(response.data.access_token)
   if (!verified || !isAdminId(verified.userId)) {
     auditSecurity('login_denied')
     redirect('/admin/login?error=credentials')
@@ -43,7 +43,7 @@ export async function centralEnroll(_state: EnrollmentState, _form: FormData): P
   if (!(await assertSameOrigin())) return { ...empty, error: 'Solicitud no permitida.' }
   const user = await requireCentralPendingMfa()
   if (user.aal === 'aal2') return { ...empty, error: 'Tu segundo factor ya está activo.' }
-  const known = await listTotpFactors(user.accessToken)
+  const known = user.totpFactors
   if (!known) return { ...empty, error: 'No se pudo comprobar los factores existentes.' }
   if (known.some(f => f.status === 'verified')) return { ...empty, error: 'Ya existe un segundo factor. Ingresá su código.' }
   // Avoid multiplying unverified factors. Supabase can limit pending enrollment factors.
@@ -73,7 +73,7 @@ export async function centralVerifyMfa(form: FormData) {
     auditSecurity('mfa_invalid_format', user.userId)
     redirect('/admin/mfa?error=code')
   }
-  const factors = await listTotpFactors(user.accessToken)
+  const factors = user.totpFactors
   if (!factors || !factors.some(f => f.id === factorId)) {
     auditSecurity('mfa_factor_denied', user.userId)
     redirect('/admin/mfa?error=code')
@@ -91,7 +91,7 @@ export async function centralVerifyMfa(form: FormData) {
     auditSecurity('mfa_failed', user.userId)
     redirect('/admin/mfa?error=code')
   }
-  const verified = await verifyAccessToken(result.data.access_token)
+  const verified = sessionFromAuthResponse(result.data) ?? await verifyAccessToken(result.data.access_token)
   if (!verified || verified.userId !== user.userId || verified.aal !== 'aal2') {
     auditSecurity('mfa_denied', user.userId)
     redirect('/admin/mfa?error=code')
