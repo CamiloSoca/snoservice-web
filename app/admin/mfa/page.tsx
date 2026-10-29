@@ -1,33 +1,32 @@
 export const instant = false
 
 import { connection } from 'next/server'
-import Image from 'next/image'
 import { redirect } from 'next/navigation'
+import { AccessShell } from '../access-shell'
 import { centralLogout } from '../actions'
 import { VerifyMfaForm } from './verify-form'
-import { requireCentralPendingMfa, listTotpFactors } from '../../../lib/central/auth'
 import { EnrollForm } from './enroll-form'
-
+import { requireCentralPendingMfa } from '../../../lib/central/auth'
 
 export default async function MfaPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   await connection()
   const session = await requireCentralPendingMfa()
   if (session.aal === 'aal2') redirect('/admin')
-  const factors = await listTotpFactors(session.accessToken)
+  const factors = session.totpFactors
   const factor = factors?.find(f => f.status === 'verified')
   const { error } = await searchParams
-  return <main className="sno-auth-screen"><div className="sno-auth-panel">
-    <div className="sno-brand"><Image className="sno-brand-logo" src="/logo.png" alt="" width={36} height={36} priority /><span>SNOOSERVICE <small>CENTRAL</small></span></div>
-    <span className="sno-overline">PROTECCIÓN DE IDENTIDAD</span>
-    <h1>Segundo factor.</h1>
-    <p className="sno-muted">Tu cuenta todavía no tiene acceso al panel. Completá la verificación para continuar.</p>
-    {error ? <div className="sno-alert" role="alert">{error === 'request'
-      ? 'El navegador no pudo completar la solicitud de forma segura. Abrí esta página directamente y reintentá.'
-      : error === 'expired'
-        ? 'La sesión venció. Volvé a ingresar con tu correo y contraseña.'
-        : 'El código no pudo verificarse. Revisá que esté vigente e intentá nuevamente.'}</div> : null}
-    {factors === null ? <div className="sno-alert">No es posible consultar los factores de acceso. Por seguridad, el panel continúa bloqueado.</div> :
+
+  return <AccessShell phase="mfa">
+    <div className="sno-access-heading">
+      <p className="sno-access-overline">VERIFICACIÓN DE IDENTIDAD</p>
+      <h1>Una última<br/>comprobación<span>.</span></h1>
+      <p>Ingresá el código temporal de tu autenticador para abrir el panel.</p>
+    </div>
+    {error ? <div className="sno-access-alert" role="alert">{error === 'request'
+      ? 'No se pudo validar la solicitud. Abrí esta pantalla directamente y reintentá.'
+      : 'No pudimos verificar el código. Revisá que siga vigente e intentá de nuevo.'}</div> : null}
+    {factors === null ? <div className="sno-access-alert" role="alert">No es posible consultar los factores de acceso. El panel permanece bloqueado.</div> :
       factor ? <VerifyMfaForm factorId={factor.id} /> : <EnrollForm />}
-    <form action={centralLogout} className="sno-form"><button className="sno-button sno-secondary" type="submit">Cerrar sesión</button></form>
-  </div></main>
+    <form action={centralLogout} className="sno-access-signout"><button type="submit">Usar otra cuenta</button></form>
+  </AccessShell>
 }
