@@ -61,18 +61,26 @@ export async function centralEnroll(_state: EnrollmentState, _form: FormData): P
 }
 
 export async function centralVerifyMfa(form: FormData) {
-  if (!(await assertSameOrigin())) redirect('/admin/mfa?error=request')
+  if (!(await assertSameOrigin())) {
+    auditSecurity('mfa_origin_denied')
+    redirect('/admin/mfa?error=request')
+  }
   const user = await requireCentralPendingMfa()
   if (user.aal === 'aal2') redirect('/admin')
   const factorId = form.get('factor_id')
   const code = form.get('code')
   if (typeof factorId !== 'string' || !/^[0-9a-f-]{36}$/i.test(factorId) || !validTotp(code)) {
+    auditSecurity('mfa_invalid_format', user.userId)
     redirect('/admin/mfa?error=code')
   }
   const factors = await listTotpFactors(user.accessToken)
-  if (!factors || !factors.some(f => f.id === factorId)) redirect('/admin/mfa?error=code')
+  if (!factors || !factors.some(f => f.id === factorId)) {
+    auditSecurity('mfa_factor_denied', user.userId)
+    redirect('/admin/mfa?error=code')
+  }
   const challenge = await authApi(`/factors/${factorId}/challenge`, 'POST', user.accessToken, {})
   if (!challenge.ok || typeof challenge.data?.id !== 'string') {
+    auditSecurity('mfa_challenge_failed', user.userId)
     redirect('/admin/mfa?error=code')
   }
   const result = await authApi(`/factors/${factorId}/verify`, 'POST', user.accessToken, {
