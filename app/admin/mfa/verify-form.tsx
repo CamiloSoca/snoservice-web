@@ -47,7 +47,7 @@ export function VerifyMfaForm({ factorId, enrollment = false }: {
   return (
     <form action={centralVerifyMfa} className="sno-form sno-mfa-form" noValidate onSubmit={handleSubmit}>
       <input type="hidden" name="factor_id" value={factorId} />
-      <label htmlFor="totp-code">{enrollment ? 'Código temporal de seis números' : 'Código de tu aplicación autenticadora'}</label>
+      <label htmlFor="totp-code">'Código de seis dígitos'</label>
       <input
         id="totp-code"
         type="text"
@@ -66,12 +66,11 @@ export function VerifyMfaForm({ factorId, enrollment = false }: {
         spellCheck={false}
         enterKeyHint="done"
         maxLength={16}
-        aria-describedby={error ? 'totp-validation-error' : 'totp-help'}
+        aria-describedby={error ? 'totp-validation-error' : undefined}
         aria-invalid={Boolean(error)}
         placeholder="000000"
         className="sno-mfa-code"
       />
-      <p id="totp-help" className="sno-mfa-help">Usá el código vigente de seis dígitos. Si lo pegás, quitamos los espacios automáticamente.</p>
       {error ? <p id="totp-validation-error" className="sno-mfa-feedback" role="alert">{error}</p> : null}
       <VerifyButton label={label} />
     </form>

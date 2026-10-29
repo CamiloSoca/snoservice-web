@@ -25,7 +25,7 @@ export default function LoginForm({ configured }: { configured: boolean }) {
       </div>
     </div>
     <div className="sno-access-field">
-      <div className="sno-access-label-row"><label htmlFor="sno-access-password">Contraseña</label><span>Acceso restringido</span></div>
+      <label htmlFor="sno-access-password">Contraseña</label>
       <div className="sno-access-password-wrap sno-access-input-wrap">
         <LockKeyhole size={18} aria-hidden="true" className="sno-access-input-icon"/>
         <input id="sno-access-password" type={visible ? 'text':'password'} name="password" autoComplete="current-password"
