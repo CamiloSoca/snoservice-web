@@ -17,13 +17,11 @@ export default async function CentralLogin({ searchParams }: { searchParams: Pro
   return <AccessShell phase="login">
     <div className="sno-access-heading">
       <h1>Iniciar sesión</h1>
-      <p>Ingresá tus credenciales para continuar.</p>
     </div>
     {!configured ? <div className="sno-access-alert" role="alert">El acceso todavía no está configurado. Por seguridad, el ingreso permanece bloqueado.</div> : null}
     {error ? <div className="sno-access-alert" role="alert">{error === 'request'
       ? 'No se pudo validar la solicitud. Abrí esta página directamente y reintentá.'
       : 'No pudimos verificar las credenciales. Revisá tu correo y contraseña.'}</div> : null}
     <LoginForm configured={configured}/>
-    <p className="sno-access-underform">Este acceso no permite el registro de nuevas cuentas.</p>
   </AccessShell>
 }
