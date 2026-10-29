@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ACCESS_COOKIE, REFRESH_COOKIE, authApi, validTokens, verifyAccessToken } from '../../../lib/central/auth'
+import { ACCESS_COOKIE, REFRESH_COOKIE, authApi, sessionFromAuthResponse, validTokens, verifyAccessToken } from '../../../lib/central/auth'
 import { auditSecurity } from '../../../lib/central/guard'
 
 
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   if (!refreshToken || refreshToken.length > 12000) return deny()
   const result = await authApi('/token?grant_type=refresh_token', 'POST', undefined, { refresh_token: refreshToken })
   if (!result.ok || !validTokens(result.data)) return deny()
-  const verified = await verifyAccessToken(result.data.access_token)
+  const verified = sessionFromAuthResponse(result.data) ?? await verifyAccessToken(result.data.access_token)
   if (!verified) {
     auditSecurity('refresh_denied')
     return deny()
