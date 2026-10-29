@@ -2,11 +2,13 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import type { ReactNode } from 'react'
+import AccessZoomGuard from './access-zoom-guard'
 
 /** Public-facing auth shell: same brand as Central, without exposing admin navigation. */
 export function AccessShell({ phase, children }: { phase: 'login' | 'mfa'; children: ReactNode }) {
   const isMfa = phase === 'mfa'
   return <main className="sno-access">
+    <AccessZoomGuard />
     <aside className="sno-access-rail" aria-label="Identidad de SNOSERVICE">
       <Link href="/" className="sno-access-rail-brand" aria-label="SNOSERVICE, ir al sitio público">
         <Image src="/logo.png" alt="" width={37} height={37} priority />
