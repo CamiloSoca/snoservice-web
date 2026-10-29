@@ -39,7 +39,7 @@ const SECTIONS: Record<Exclude<CentralSection, 'resumen'>, {
   },
   clientes: {
     label: 'Clientes', overline: '02 / RELACIONES', title: 'Una ficha por cada cliente.',
-    description: 'Contratos, servicios, contactos y aplicaciones vinculadas. Sin mezclar el negocio de SNOOSERVICE con los datos privados de sus clientes.',
+    description: 'Contratos, servicios, contactos y aplicaciones vinculadas. Sin mezclar el negocio de SNOSERVICE con los datos privados de sus clientes.',
     upcoming: ['Directorio de clientes', 'Servicios contratados', 'Historial comercial'], Icon: UsersRound, number: '02',
   },
   estadisticas: {
@@ -48,7 +48,7 @@ const SECTIONS: Record<Exclude<CentralSection, 'resumen'>, {
     upcoming: ['Métricas verificables por instalación', 'Tendencias por período', 'Visibilidad por servicio'], Icon: BarChart3, number: '03',
   },
   facturacion: {
-    label: 'Facturación', overline: '04 / NEGOCIO', title: 'Los números de SNOOSERVICE.',
+    label: 'Facturación', overline: '04 / NEGOCIO', title: 'Los números de SNOSERVICE.',
     description: 'Planes, vencimientos e ingresos propios. Este espacio estará separado de las cajas y la contabilidad de cualquier negocio cliente.',
     upcoming: ['Planes y suscripciones', 'Cobros pendientes', 'Ingresos recurrentes'], Icon: CreditCard, number: '04',
   },
@@ -70,7 +70,7 @@ const PAGES = NAV.reduce((acc, item) => {
 }, {} as Record<CentralSection, string>)
 
 function Brand() {
-  return <div className="sc-brand" aria-label="SNOOSERVICE Central">
+  return <div className="sc-brand" aria-label="SNOSERVICE Central">
     <span className="sc-brand-symbol"><Image src="/logo.png" alt="" width={33} height={33} priority /></span>
     <span className="sc-brand-text">SNO<span>SERVICE</span><small>C E N T R A L</small></span>
   </div>
@@ -102,7 +102,7 @@ function Overview({ navigate }: { navigate: (id: CentralSection) => void }) {
   return <div className="sc-overview">
     <div className="sc-page-heading">
       <div>
-        <p className="sc-eyebrow">SNOOSERVICE / COMMAND CENTER</p>
+        <p className="sc-eyebrow">SNOSERVICE / COMMAND CENTER</p>
         <h1>Todo en su lugar<span className="sc-period">.</span></h1>
         <p className="sc-lead">Una vista clara de tu operación. Sin ruido, sin datos de relleno.</p>
       </div>
@@ -280,7 +280,7 @@ export default function CentralDashboardClient({ initialSection, adminEmail }: {
         <div className="sc-nav-group"><span className="sc-nav-heading">PLATAFORMA</span>{firstGroup.map(item=><NavButton key={item.id} item={item} selected={section===item.id} navigate={navigate}/>)}</div>
         <div className="sc-nav-group"><span className="sc-nav-heading">ADMINISTRACIÓN</span>{secondGroup.map(item=><NavButton key={item.id} item={item} selected={section===item.id} navigate={navigate}/>)}</div>
       </nav>
-      <div className="sc-sidebar-bottom"><div className="sc-sidebar-note"><span className="sc-small-dot"/><div><strong>Central está operativo</strong><small>Sin integraciones conectadas</small></div></div><a href="/" className="sc-public-link" aria-label="Ir al sitio público de SNOOSERVICE"><ExternalLink size={15}/> Sitio público <ArrowUpRight size={14}/></a></div>
+      <div className="sc-sidebar-bottom"><div className="sc-sidebar-note"><span className="sc-small-dot"/><div><strong>Central está operativo</strong><small>Sin integraciones conectadas</small></div></div><a href="/" className="sc-public-link" aria-label="Ir al sitio público de SNOSERVICE"><ExternalLink size={15}/> Sitio público <ArrowUpRight size={14}/></a></div>
     </aside>
     <div className="sc-main">
       <header className="sc-header">
