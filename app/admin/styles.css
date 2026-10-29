@@ -63,3 +63,16 @@
 .sno-form{display:flex;flex-direction:column;gap:12px;margin-top:22px}.sno-form label{font-size:12px;color:#dae5db}.sno-form input{background:#111714;border:1px solid #3c4b3e;border-radius:7px;color:#f3f7f1;padding:13px;min-height:46px}.sno-button{border:1px solid #465c4b;border-radius:7px;font-weight:710;font-size:12px;padding:13px 14px}.sno-primary{background:#a6b7a9;border-color:#a6b7a9;color:#172118}.sno-secondary{background:#243029;color:#e9f0ea}.sno-button:disabled{opacity:.55;cursor:not-allowed}
 .sno-alert{color:#f4d6d0;font-size:12px;padding:12px;border-radius:7px;margin:15px 0;background:#492c2a;border:1px solid #77504a;line-height:1.5}.sno-auth-note{font-size:11px;color:#88988a;line-height:1.7;margin-top:22px}.sno-back{display:inline-block;margin-top:13px;color:#c5d8c6!important;font-size:12px}.sno-qr{display:block;width:200px;height:200px;padding:10px;background:white;border-radius:7px;margin:19px auto}.sno-secret{display:block;background:#0e1510;padding:12px;border-radius:7px;color:#cfdfd1;font-size:12px;overflow-wrap:anywhere}
 @media(max-width:500px){.sno-auth-panel{padding:28px 22px}}
+
+
+/* Reliable, accessible OTP form on iOS Safari and other mobile browsers. */
+.sno-mfa-form{width:100%;min-width:0}
+.sno-mfa-code{display:block;width:100%;min-width:0;max-width:100%;font-size:clamp(21px,6vw,29px)!important;font-variant-numeric:tabular-nums;letter-spacing:.28em;text-align:center;-webkit-appearance:none;appearance:none;outline-offset:2px}
+.sno-mfa-code::placeholder{color:#6e806f;opacity:.75}
+.sno-mfa-code[aria-invalid="true"]{border-color:#c58a7f}
+.sno-mfa-help{color:#a0b0a2;font-size:11px;line-height:1.6;margin:0}
+.sno-mfa-feedback{color:#f0c3bc;font-size:12px;line-height:1.6;margin:0;display:block}
+.sno-mfa-submit{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;width:100%;touch-action:manipulation;-webkit-appearance:none;appearance:none;position:relative;z-index:1}
+.sno-mfa-spinner{width:15px;height:15px;border:2px solid #263d2b66;border-top-color:#182619;border-radius:50%;display:inline-block;animation:sno-rotate .8s linear infinite}
+@keyframes sno-rotate{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.sno-mfa-spinner{animation:none;border-top-color:#182619}}
