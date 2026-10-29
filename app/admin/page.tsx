@@ -4,7 +4,7 @@ import { connection } from 'next/server'
 import { requireCentralAdmin } from '../../lib/central/auth'
 import CentralDashboardClient, { type CentralSection } from './dashboard-client'
 
-const sections = new Set<CentralSection>(['resumen', 'sitios', 'clientes', 'estadisticas', 'facturacion', 'configuracion'])
+const sections = new Set<CentralSection>(['resumen', 'sitios', 'clientes', 'estadisticas', 'facturacion', 'automatizaciones', 'configuracion'])
 
 export default async function CentralDashboard({ searchParams }: {
   searchParams: Promise<{ section?: string }>
