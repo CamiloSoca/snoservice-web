@@ -1,35 +1,30 @@
 export const instant = false
 
 import { connection } from 'next/server'
-import Image from 'next/image'
 import { redirect } from 'next/navigation'
-import { centralLogin } from '../actions'
 import { currentSession, isCentralConfigured } from '../../../lib/central/auth'
-
+import { AccessShell } from '../access-shell'
+import LoginForm from './login-form'
 
 export default async function CentralLogin({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   await connection()
   const session = await currentSession()
   if (session.state === 'authenticated') redirect(session.aal === 'aal2' ? '/admin' : '/admin/mfa')
+  if (session.state === 'refresh') redirect('/admin/refresh')
   const { error } = await searchParams
   const configured = isCentralConfigured()
-  return <main className="sno-auth-screen">
-    <div className="sno-auth-panel">
-      <div className="sno-brand"><Image className="sno-brand-logo" src="/logo.png" alt="" width={36} height={36} priority /><span>SNOOSERVICE <small>CENTRAL</small></span></div>
-      <span className="sno-overline">ACCESO RESTRINGIDO</span>
-      <h1>Administración segura.</h1>
-      <p className="sno-muted">Ingresá con tu cuenta autorizada. Después se solicitará el segundo factor.</p>
-      {!configured ? <div className="sno-alert" role="alert">El sistema de acceso aún no fue configurado. Por seguridad, el ingreso permanece bloqueado.</div> : null}
-      {error ? <div className="sno-alert" role="alert">No fue posible iniciar sesión. Verificá tus credenciales e intentá nuevamente.</div> : null}
-      <form action={centralLogin} className="sno-form">
-        <label htmlFor="email">Correo electrónico</label>
-        <input id="email" type="email" name="email" autoComplete="username" required maxLength={254} disabled={!configured} />
-        <label htmlFor="password">Contraseña</label>
-        <input id="password" type="password" name="password" autoComplete="current-password" required minLength={8} maxLength={200} disabled={!configured} />
-        <button className="sno-button sno-primary" type="submit" disabled={!configured}>Ingresar de forma segura</button>
-      </form>
-      <p className="sno-auth-note">No existe registro público. Las cuentas deben ser habilitadas expresamente por el administrador.</p>
-      <a className="sno-back" href="/">Volver al sitio público</a>
+
+  return <AccessShell phase="login">
+    <div className="sno-access-heading">
+      <p className="sno-access-overline">ACCESO ADMINISTRATIVO</p>
+      <h1>Bienvenido<br/>a Central<span>.</span></h1>
+      <p>Ingresá con tu cuenta autorizada para continuar al centro de operaciones.</p>
     </div>
-  </main>
+    {!configured ? <div className="sno-access-alert" role="alert">El acceso todavía no está configurado. Por seguridad, el ingreso permanece bloqueado.</div> : null}
+    {error ? <div className="sno-access-alert" role="alert">{error === 'request'
+      ? 'No se pudo validar la solicitud. Abrí esta página directamente y reintentá.'
+      : 'No pudimos verificar las credenciales. Revisá tu correo y contraseña.'}</div> : null}
+    <LoginForm configured={configured}/>
+    <p className="sno-access-underform">Este acceso no permite el registro de nuevas cuentas.</p>
+  </AccessShell>
 }
