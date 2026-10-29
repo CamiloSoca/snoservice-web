@@ -25,16 +25,22 @@ export function VerifyMfaForm({ factorId, enrollment = false }: {
   factorId: string
   enrollment?: boolean
 }) {
-  const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const label = enrollment ? 'Verificar y activar' : 'Verificar identidad'
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    if (!/^\d{6}$/.test(code)) {
+    // Read the actual input value: iOS one-time-code autofill can update the DOM
+    // before React receives an onChange notification.
+    const input = event.currentTarget.elements.namedItem('code')
+    const normalized = input instanceof HTMLInputElement
+      ? input.value.replace(/[^0-9]/g, '').slice(0, 6)
+      : ''
+    if (!/^\d{6}$/.test(normalized)) {
       event.preventDefault()
       setError('Ingresá los seis números del código de tu aplicación autenticadora.')
       return
     }
+    if (input instanceof HTMLInputElement) input.value = normalized
     setError('')
   }
 
@@ -46,10 +52,11 @@ export function VerifyMfaForm({ factorId, enrollment = false }: {
         id="totp-code"
         type="text"
         name="code"
-        value={code}
-        onChange={(event) => {
+        onInput={(event) => {
           // Strip spaces and punctuation added by iOS autofill or copy/paste.
-          setCode(event.target.value.replace(/[^0-9]/g, '').slice(0, 6))
+          const input = event.currentTarget
+          const normalized = input.value.replace(/[^0-9]/g, '').slice(0, 6)
+          if (input.value !== normalized) input.value = normalized
           if (error) setError('')
         }}
         inputMode="numeric"
