@@ -76,3 +76,74 @@
 .sno-mfa-spinner{width:15px;height:15px;border:2px solid #263d2b66;border-top-color:#182619;border-radius:50%;display:inline-block;animation:sno-rotate .8s linear infinite}
 @keyframes sno-rotate{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.sno-mfa-spinner{animation:none;border-top-color:#182619}}
+
+
+/* CENTRAL / ACCESS — deliberate editorial identity, not dashboard leftovers.
+   The protected workspace uses the original logo, a warm paper form and quiet sage accents. */
+.sno-access{display:grid;grid-template-columns:minmax(330px,.97fr) minmax(430px,1.03fr);min-height:100dvh;background:#edece6;color:#202623;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;overflow:hidden}
+.sno-access-aside{background:#151a19;color:#eff0eb;min-height:100dvh;display:flex;flex-direction:column;justify-content:space-between;padding:35px clamp(24px,3.3vw,60px) 28px;position:relative;overflow:hidden;border-right:1px solid #303d35}
+.sno-access-aside:before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 53% 40%,#2d3e3166,transparent 51%),linear-gradient(110deg,#0c100f22,transparent 55%);pointer-events:none}
+.sno-access-aside-head,.sno-access-aside-content,.sno-access-aside-footer{position:relative;z-index:1}
+.sno-access-aside-head{display:flex;align-items:center;justify-content:space-between;gap:18px}
+.sno-access-brand{display:inline-flex;align-items:center;gap:12px;min-width:0}
+.sno-access-brand-icon{display:grid;place-items:center;width:43px;height:43px;background:#26342b;border:1px solid #3d5442;border-radius:10px}
+.sno-access-brand strong{display:block;font-weight:820;letter-spacing:-.055em;line-height:1.1;color:#f2f2eb;font-size:18px;white-space:nowrap}
+.sno-access-brand strong span{color:#b6ccba}
+.sno-access-brand small{display:block;color:#90a396;font-size:9px;letter-spacing:.04em;margin-top:6px;font-weight:780}
+.sno-access-internal{font-size:9px;color:#93a89a;letter-spacing:.17em;white-space:nowrap}
+.sno-access-aside-content{padding-bottom:10px}
+.sno-access-drawing{height:clamp(190px,30vh,340px);position:relative;display:grid;place-items:center;margin:0 0 28px}
+.sno-access-drawing-outer,.sno-access-drawing-middle{position:absolute;display:block;border-radius:50%;width:clamp(185px,22vw,270px);aspect-ratio:1;border:1px solid #5e77654f}
+.sno-access-drawing-outer{box-shadow:0 0 0 52px #6b8b7130,0 0 0 105px #6b8b7113}
+.sno-access-drawing-middle{width:clamp(115px,15vw,180px);border-style:dashed;border-color:#78937b88}
+.sno-access-drawing-center{position:relative;display:grid;place-items:center;width:99px;height:99px;border:1px solid #6d91774f;border-radius:26px;background:linear-gradient(150deg,#334c3b,#1b2920);box-shadow:0 26px 72px #0004;transform:rotate(-8deg)}
+.sno-access-drawing-center img{transform:rotate(8deg);object-fit:contain}
+.sno-access-drawing-node{display:block;width:8px;height:8px;background:#adc6b1;border:3px solid #263a2a;border-radius:50%;position:absolute;box-sizing:content-box}
+.sno-access-drawing-node.node-one{transform:translate(110px,-73px)}.sno-access-drawing-node.node-two{transform:translate(-98px,87px)}
+.sno-access-aside-eyebrow{font-size:10px;font-weight:780;letter-spacing:.16em;color:#a9c1ae;margin:0 0 13px}
+.sno-access-aside-content h2{font-size:clamp(32px,4.2vw,58px);line-height:1.025;font-weight:610;letter-spacing:-.075em;margin:0 0 18px}
+.sno-access-aside-content>p:last-child{color:#aab7aa;font-size:13px;line-height:1.75;margin:0;max-width:395px}
+.sno-access-aside-footer{display:flex;justify-content:space-between;gap:15px;border-top:1px solid #334036;padding-top:20px;color:#8ca193;font-size:10px}
+.sno-access-aside-footer>span:first-child{display:flex;gap:9px;align-items:center}
+.sno-access-live-dot{width:7px;height:7px;border-radius:50%;background:#a1bca6}
+.sno-access-main{display:flex;flex-direction:column;justify-content:space-between;min-width:0;min-height:100dvh;padding:29px clamp(28px,5.5vw,90px) 28px;background:radial-gradient(circle at 100% 0%,#f4f3ec,transparent 46%),#edece6}
+.sno-access-center{width:min(455px,100%);margin:auto;display:flex;flex-direction:column;padding:45px 0 35px}
+.sno-access-step{display:flex;align-items:center;gap:9px;font-size:10px;font-weight:800;color:#8b978b;letter-spacing:.08em;margin-bottom:36px}
+.sno-access-step>span:first-child{color:#365743;border:1px solid #a8b9ac;border-radius:4px;padding:7px 9px;background:#dbe4da}
+.sno-access-step-line{height:1px;width:39px;background:#b5bdb1}.sno-access-step-word{margin-left:auto;color:#7f8b81;letter-spacing:.14em}
+.sno-access-overline{font-size:10px;color:#516b58;font-weight:800;letter-spacing:.16em;margin:0 0 17px}
+.sno-access-heading h1{font-size:clamp(38px,4.3vw,56px);font-weight:620;letter-spacing:-.07em;line-height:1.04;margin:0 0 17px;color:#222b24}
+.sno-access-heading h1 span{color:#789381}
+.sno-access-heading>p:last-child{font-size:14px;line-height:1.75;color:#6e7970;max-width:380px;margin:0 0 36px}
+.sno-access-form{display:flex;flex-direction:column;gap:20px}
+.sno-access-field{display:flex;flex-direction:column;gap:9px}
+.sno-access-field label,.sno-access .sno-mfa-form>label{font-size:12px;font-weight:730;color:#37443a}
+.sno-access-field input,.sno-access .sno-mfa-code{display:block;width:100%;min-height:53px;padding:14px 15px;color:#29332a;background:#f9f9f5;border:1px solid #c6cdc3;border-radius:7px;font-size:14px;box-shadow:0 1px 2px #26352709;transition:border-color .18s,box-shadow .18s}
+.sno-access-field input::placeholder,.sno-access .sno-mfa-code::placeholder{color:#99a499}
+.sno-access-field input:focus,.sno-access .sno-mfa-code:focus{border-color:#71927b;outline:2px solid #8faf9240;outline-offset:0;box-shadow:0 0 0 3px #73997b14}
+.sno-access-label-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.sno-access-label-row>span{font-size:10px;color:#879186}
+.sno-access-password-wrap{position:relative}.sno-access-password-wrap>input{padding-right:53px}
+.sno-access-password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);display:grid;place-items:center;border:0;background:transparent;color:#6c8070;width:36px;height:36px;border-radius:5px}
+.sno-access-password-toggle:hover{background:#e8ece6;color:#263b2b}
+.sno-access-submit,.sno-access .sno-mfa-submit{display:inline-flex;align-items:center;justify-content:space-between;width:100%;gap:12px;background:#263e2f;color:#f7f9f3!important;border:1px solid #263e2f;border-radius:7px;padding:16px 19px;min-height:54px;font-size:13px;font-weight:720;margin-top:6px;box-shadow:0 9px 24px #273e301c;transition:background .18s,transform .18s}
+.sno-access-submit:hover:not(:disabled),.sno-access .sno-mfa-submit:hover:not(:disabled){background:#34533d;transform:translateY(-1px)}
+.sno-access-submit:disabled,.sno-access .sno-mfa-submit:disabled{opacity:.57;transform:none}
+.sno-access-loading{width:17px;height:17px;border-radius:50%;border:2px solid #cce0ce70;border-top-color:#fff;animation:sno-rotate .8s linear infinite}
+.sno-access-underform{font-size:11px;line-height:1.6;color:#818d82;margin:19px 0 0}
+.sno-access-security{display:flex;align-items:center;gap:12px;border-top:1px solid #cbd2c8;margin-top:38px;padding-top:19px}
+.sno-access-security-icon{display:grid;place-items:center;flex:0 0 34px;height:34px;background:#dde6dc;color:#567460;border:1px solid #c1d0c3;border-radius:8px}
+.sno-access-security>div{flex:1;min-width:0}.sno-access-security strong{display:block;font-size:11px;color:#3e5041}.sno-access-security p{font-size:10px;line-height:1.55;color:#879286;margin:5px 0 0}.sno-access-shield{color:#7d9883}
+.sno-access-main-footer{display:flex;align-items:center;justify-content:space-between;gap:18px;color:#879488;font-size:10px}.sno-access-main-footer>a{display:flex;align-items:center;gap:8px;color:#4e6854!important;font-size:11px;font-weight:650}.sno-access-main-footer>a:hover{color:#22372b!important}
+.sno-access-alert{border:1px solid #d7b8aa;background:#f1e0d8;color:#8b4c3e;border-radius:7px;font-size:12px;line-height:1.55;padding:12px 13px;margin:0 0 21px}
+.sno-access-signout{margin-top:23px}.sno-access-signout button{background:transparent;color:#47684d;border:0;padding:7px 0;font-size:12px;font-weight:700;text-decoration:underline;text-underline-offset:4px}
+.sno-access .sno-mfa-form{margin:0;display:flex;gap:14px}.sno-access .sno-mfa-code{font-size:27px!important;letter-spacing:.24em;text-align:center;color:#293b2c;background:#f8f9f4;min-height:61px}.sno-access .sno-mfa-help{font-size:11px;color:#8a9688;margin:0}.sno-access .sno-mfa-feedback{color:#a25849}
+.sno-access .sno-muted{color:#6e7970;font-size:12px}.sno-access .sno-alert{background:#f1e0d8;color:#8b4c3e;border-color:#d7b8aa}
+.sno-access .sno-secret{background:#e1e6db;border:1px solid #c7d3c5;color:#31523c}
+.sno-access .sno-form{display:flex;flex-direction:column;gap:13px;margin:0}.sno-access .sno-form .sno-button{background:#263e2f;color:#f7f9f3;border-radius:7px;padding:15px;border-color:#263e2f}
+.sno-access .sno-form .sno-button.sno-secondary{background:transparent;color:#3b5a43;border:1px solid #b5c1b5}
+.sno-access-mobile-brand{display:none}
+@media(max-width:1100px){.sno-access{grid-template-columns:minmax(290px,.86fr) minmax(370px,1.14fr)}.sno-access-aside{padding:27px 25px 25px}.sno-access-internal{display:none}.sno-access-main{padding:28px 40px}.sno-access-drawing{height:230px}.sno-access-drawing-outer{width:200px}}
+@media(max-width:720px){.sno-access{display:block;background:#edece6}.sno-access-aside{display:none}.sno-access-main{min-height:100dvh;min-height:100svh;padding:24px 22px 24px}.sno-access-mobile-brand{display:block}.sno-access-mobile-brand .sno-access-brand strong{color:#25392b;font-size:16px}.sno-access-mobile-brand .sno-access-brand strong span{color:#769a7d}.sno-access-mobile-brand .sno-access-brand small{color:#617c67;font-size:8px}.sno-access-center{padding:49px 0 30px;width:min(440px,100%)}.sno-access-step{margin-bottom:24px}.sno-access-heading h1{font-size:clamp(39px,10vw,49px)}.sno-access-heading>p:last-child{font-size:13px;margin-bottom:31px}.sno-access-main-footer{flex-wrap:wrap;gap:9px}}
+@media(max-width:380px){.sno-access-main{padding:21px 18px}.sno-access-center{padding:35px 0}.sno-access-heading h1{font-size:38px}.sno-access-security{align-items:flex-start}.sno-access-step-word{font-size:9px}.sno-access-main-footer{font-size:9px}}
+@media(prefers-reduced-motion:reduce){.sno-access-loading,.sno-access-submit,.sno-access-password-toggle{animation:none;transition:none}}
