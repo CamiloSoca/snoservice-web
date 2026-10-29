@@ -20,7 +20,7 @@ export function AccessShell({ phase, children }: { phase: 'login' | 'mfa'; child
         <ChevronRight size={15} aria-hidden="true" />
       </div>
       <div className="sno-access-rail-label">ACCESO ADMINISTRATIVO</div>
-      <div className="sno-access-rail-item">
+      <div className={'sno-access-rail-item' + (!second ? ' is-current' : '')}>
         <LockKeyhole size={17} strokeWidth={1.7} aria-hidden="true" />
         <span>Identificación</span>
         <span className="sno-access-rail-index">01</span>
