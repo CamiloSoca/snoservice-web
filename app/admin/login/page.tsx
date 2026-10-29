@@ -16,9 +16,8 @@ export default async function CentralLogin({ searchParams }: { searchParams: Pro
 
   return <AccessShell phase="login">
     <div className="sno-access-heading">
-      <p className="sno-access-overline">ACCESO ADMINISTRATIVO</p>
-      <h1>Bienvenido<br/>a Central<span>.</span></h1>
-      <p>Ingresá con tu cuenta autorizada para continuar al centro de operaciones.</p>
+      <h1>Iniciar sesión</h1>
+      <p>Ingresá tus credenciales para continuar.</p>
     </div>
     {!configured ? <div className="sno-access-alert" role="alert">El acceso todavía no está configurado. Por seguridad, el ingreso permanece bloqueado.</div> : null}
     {error ? <div className="sno-access-alert" role="alert">{error === 'request'
