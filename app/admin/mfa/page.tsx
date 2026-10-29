@@ -18,9 +18,7 @@ export default async function MfaPage({ searchParams }: { searchParams: Promise<
 
   return <AccessShell phase="mfa">
     <div className="sno-access-heading">
-      <p className="sno-access-overline">VERIFICACIÓN DE IDENTIDAD</p>
-      <h1>Una última<br/>comprobación<span>.</span></h1>
-      <p>Ingresá el código temporal de tu autenticador para abrir el panel.</p>
+      <h1>Verificar identidad</h1>
     </div>
     {error ? <div className="sno-access-alert" role="alert">{error === 'request'
       ? 'No se pudo validar la solicitud. Abrí esta pantalla directamente y reintentá.'
