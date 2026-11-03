@@ -136,6 +136,22 @@ function Overview({ navigate }: { navigate: (id: CentralSection) => void }) {
       <Metric label="Facturación" value="—" detail="Aún sin configurar" Icon={CreditCard}/>
     </section>
 
+    <section className="sc-registered-preview" aria-label="Aplicaciones registradas">
+      <div className="sc-registered-head"><div><span className="sc-kicker">02 / APLICACIONES</span><h2>Tus proyectos</h2></div>
+        <button type="button" onClick={() => navigate('sitios')}>Ver todos <ArrowRight size={16}/></button>
+      </div>
+      <div className="sc-registered-list">
+        {REGISTERED_PROJECTS.map(project => <div className="sc-registered-entry" key={project.id}>
+          <ProjectMark project={project} />
+          <div className="sc-registered-info"><strong>{project.name}</strong><small>{project.domain}</small></div>
+          <span className="sc-registered-kind">{project.category}</span>
+          <a href={project.adminUrl} target="_blank" rel="noopener noreferrer" aria-label={'Abrir ' + project.name}>
+            Abrir <ArrowUpRight size={15}/>
+          </a>
+        </div>)}
+      </div>
+    </section>
+
     <div className="sc-lower-grid">
       <section className="sc-panel sc-next">
         <div className="sc-panel-heading"><span className="sc-kicker">02 / PRÓXIMAS ACCIONES</span><h2>Empezar bien.</h2><p>Tres módulos para construir el sistema desde una base ordenada.</p></div>
@@ -169,7 +185,57 @@ function Overview({ navigate }: { navigate: (id: CentralSection) => void }) {
   </div>
 }
 
+function ProjectMark({ project }: { project: RegisteredProject }) {
+  const Icon = project.id === '13-cut' ? Scissors : Package
+  return <span className={'sc-project-mark' + (project.id === 'distribuidora' ? ' is-distributor' : '')}>
+    <Icon size={22} strokeWidth={1.65} aria-hidden="true" />
+  </span>
+}
+
+function SitesView() {
+  return <div className="sc-section-view sc-sites-view">
+    <div className="sc-page-heading sc-section-heading">
+      <div>
+        <span className="sc-eyebrow">01 / INSTALACIONES</span>
+        <h1>Sitios y apps<span className="sc-period">.</span></h1>
+        <p className="sc-lead">Tus aplicaciones en un mismo lugar, sin mezclar sus datos.</p>
+      </div>
+      <span className="sc-heading-aside"><span className="sc-small-dot" /> {REGISTERED_PROJECTS.length} registradas</span>
+    </div>
+    <div className="sc-project-grid">
+      {REGISTERED_PROJECTS.map(project => (
+        <article className="sc-project-card" key={project.id}>
+          <div className="sc-project-card-top">
+            <ProjectMark project={project} />
+            <span className="sc-project-kind">{project.type}</span>
+          </div>
+          <div className="sc-project-card-body">
+            <p className="sc-project-category">{project.category}</p>
+            <h2>{project.name}</h2>
+            <p>{project.summary}</p>
+            <div className="sc-project-tags">{project.capabilities.map(tag => <span key={tag}>{tag}</span>)}</div>
+          </div>
+          <div className="sc-project-card-footer">
+            <span className="sc-project-domain"><Globe2 size={15} strokeWidth={1.7}/>{project.domain}</span>
+            <div className="sc-project-actions">
+              <a className="sc-project-action is-primary" href={project.adminUrl} target="_blank" rel="noopener noreferrer">
+                Abrir {project.id === '13-cut' ? 'panel' : 'aplicación'} <ExternalLink size={16} />
+              </a>
+              {project.websiteUrl !== project.adminUrl &&
+                <a className="sc-project-action" href={project.websiteUrl} target="_blank" rel="noopener noreferrer">
+                  Ver sitio <ArrowUpRight size={16} />
+                </a>}
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+    <p className="sc-project-footnote"><LockKeyhole size={15} strokeWidth={1.7}/> Cada aplicación mantiene su propio inicio de sesión. Las métricas aún no están sincronizadas.</p>
+  </div>
+}
+
 function SectionView({ section, navigate }: { section: Exclude<CentralSection,'resumen'>; navigate: (id: CentralSection) => void }) {
+  if (section === 'sitios') return <SitesView />
   const item = SECTIONS[section]
   const Icon = item.Icon
   return <div className="sc-section-view">
