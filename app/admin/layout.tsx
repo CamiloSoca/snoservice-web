@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   description: 'Panel privado de administración',
   robots: { index: false, follow: false, noarchive: true },
   manifest: '/central.webmanifest',
+  other: { 'mobile-web-app-capable': 'yes' },
   appleWebApp: {
     capable: true,
     title: 'Central',
