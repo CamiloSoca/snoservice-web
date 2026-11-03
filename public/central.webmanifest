@@ -1,0 +1,19 @@
+{
+  "name": "SNOSERVICE Central",
+  "short_name": "Central",
+  "description": "Panel privado de administración de SNOSERVICE.",
+  "id": "/admin",
+  "start_url": "/admin/login",
+  "scope": "/admin",
+  "display": "standalone",
+  "background_color": "#101213",
+  "theme_color": "#101213",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

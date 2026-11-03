@@ -394,3 +394,14 @@
   .sc-registered-entry>a{font-size:10px}
 }
 @media(prefers-reduced-motion:reduce){.sc-project-card{transition:none}}
+
+
+/* iOS home-screen mode: app-like chrome without changing normal Safari or the public site.
+   No service worker/cache of privileged responses is registered. */
+@media (display-mode: standalone) {
+  .sno-admin { -webkit-tap-highlight-color: transparent; }
+  .sno-access { min-height: 100dvh; }
+  .sno-access-footer { padding-bottom: max(20px, env(safe-area-inset-bottom, 0px)); }
+  .sc-main { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .sc-footer { padding-bottom: max(20px, env(safe-area-inset-bottom, 0px)); }
+}
