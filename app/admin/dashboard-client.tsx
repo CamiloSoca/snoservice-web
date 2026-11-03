@@ -12,6 +12,10 @@ import {
 import { centralLogout } from './actions'
 import { REGISTERED_PROJECTS, type RegisteredProject } from '../../lib/central/registered-projects'
 
+type Integration = { id: '13-cut' | 'distribuidora'; status: 'connected' | 'unavailable' | 'pending'; metrics: Record<string, number> | null; asOf: string | null }
+type IntegrationSummary = { connectedSites: number; registeredSites: number; integrations: Integration[] }
+type LiveProps = { summary: IntegrationSummary | null; loading: boolean; refresh: () => void }
+
 export type CentralSection =
   'resumen' | 'sitios' | 'clientes' | 'estadisticas' |
   'facturacion' | 'automatizaciones' | 'configuracion'
@@ -99,7 +103,44 @@ function Metric({ label, value, detail, Icon, tone }: {
   </article>
 }
 
-function Overview({ navigate }: { navigate: (id: CentralSection) => void }) {
+
+function LiveIntegrations({ summary, loading, refresh }: LiveProps) {
+  const dist = summary?.integrations.find(item => item.id === 'distribuidora')
+  const cut = summary?.integrations.find(item => item.id === '13-cut')
+  const num = (value: number | undefined) => typeof value === 'number' ? value.toLocaleString('es-UY') : '—'
+  const uyu = (cents: number | undefined) => typeof cents === 'number'
+    ? (cents / 100).toLocaleString('es-UY', { style: 'currency', currency: 'UYU', maximumFractionDigits: 0 }) : '—'
+  return <section className="sc-live-panel" aria-label="Datos en vivo de las instalaciones">
+    <div className="sc-live-head">
+      <div><span className="sc-kicker">CONEXIONES REALES</span><h2>Actividad de tus negocios</h2><p>Datos de solo lectura, obtenidos desde cada proyecto. Sin mezclar las bases.</p></div>
+      <button className="sc-live-reload" type="button" onClick={refresh} disabled={loading}><Activity size={15} /> {loading ? 'Consultando…' : 'Actualizar'}</button>
+    </div>
+    <div className="sc-live-grid">
+      <article className="sc-live-business">
+        <div className="sc-live-business-head"><Scissors size={20} /><strong>13 CUT</strong><span className="sc-live-status is-pending">Pendiente</span></div>
+        <p className="sc-live-note">La integración de lectura del sistema del cliente todavía no fue autorizada por el servicio. Sus turnos y su caja siguen intactos.</p>
+        <span className="sc-live-caption">Sin datos externos conectados</span>
+      </article>
+      <article className="sc-live-business">
+        <div className="sc-live-business-head"><Package size={20} /><strong>Distribuidora</strong>
+          <span className={'sc-live-status ' + (dist?.status === 'connected' ? 'is-ready' : 'is-pending')}>{dist?.status === 'connected' ? 'Conectada' : loading ? 'Verificando' : 'Sin conexión'}</span>
+        </div>
+        {dist?.status === 'connected' && dist.metrics ? <>
+          <div className="sc-live-stats">
+            <div><span>Ventas confirmadas</span><strong>{num(dist.metrics.sales)}</strong></div>
+            <div><span>Ingresos brutos</span><strong>{uyu(dist.metrics.revenueCents)}</strong></div>
+            <div><span>Unidades disponibles</span><strong>{num(dist.metrics.stockUnits)}</strong></div>
+            <div><span>Productos</span><strong>{num(dist.metrics.products)}</strong></div>
+          </div>
+          <span className="sc-live-caption">Lectura actualizada {dist.asOf ? new Date(dist.asOf).toLocaleString('es-UY') : ''} · Solo consulta</span>
+        </> : <><p className="sc-live-note">{loading ? 'Consultando datos del negocio…' : 'No se pudo obtener el resumen. La aplicación y sus datos siguen funcionando por separado.'}</p>
+          <span className="sc-live-caption">No se muestran datos de prueba</span></>}
+      </article>
+    </div>
+  </section>
+}
+
+function Overview({ navigate, summary, loading, refresh }: { navigate: (id: CentralSection) => void } & LiveProps) {
   return <div className="sc-overview">
     <div className="sc-page-heading">
       <div>
@@ -119,7 +160,7 @@ function Overview({ navigate }: { navigate: (id: CentralSection) => void }) {
           <p>13 CUT y Distribuidora ya figuran en Central. Abrí cada aplicación desde acá; sus datos siguen separados.</p>
           <button className="sc-feature-action" type="button" onClick={() => navigate('sitios')}>Ver aplicaciones <ArrowUpRight size={17}/></button>
         </div>
-        <div className="sc-feature-bottom"><span>ESTADO ACTUAL</span><strong>2 apps registradas · Sin sincronización</strong></div>
+        <div className="sc-feature-bottom"><span>ESTADO ACTUAL</span><strong>{loading ? 'Comprobando conexiones…' : `${summary?.connectedSites ?? 0} integraciones de lectura activas`}</strong></div>
       </div>
       <div className="sc-feature-side">
         <div className="sc-feature-side-header"><span>PLATAFORMA CENTRAL</span><Fingerprint size={21} strokeWidth={1.2}/></div>
@@ -132,9 +173,11 @@ function Overview({ navigate }: { navigate: (id: CentralSection) => void }) {
     <section className="sc-metrics" aria-label="Resumen de operación">
       <Metric label="Apps registradas" value={String(REGISTERED_PROJECTS.length).padStart(2, '0')} detail="Accesos independientes" Icon={Globe2}/>
       <Metric label="Proyectos de clientes" value={String(REGISTERED_PROJECTS.filter(p => p.type === 'Cliente').length).padStart(2, '0')} detail="13 CUT · Barbería" Icon={UsersRound}/>
-      <Metric label="Integraciones de datos" value="00" detail="Aún sin sincronizar" Icon={Workflow}/>
+      <Metric label="Integraciones de datos" value={loading ? '…' : String(summary?.connectedSites ?? 0).padStart(2, '0')} detail="Lectura aislada y protegida" Icon={Workflow}/>
       <Metric label="Facturación" value="—" detail="Aún sin configurar" Icon={CreditCard}/>
     </section>
+
+    <LiveIntegrations summary={summary} loading={loading} refresh={refresh} />
 
     <section className="sc-registered-preview" aria-label="Aplicaciones registradas">
       <div className="sc-registered-head"><div><span className="sc-kicker">02 / APLICACIONES</span><h2>Tus proyectos</h2></div>
@@ -167,7 +210,7 @@ function Overview({ navigate }: { navigate: (id: CentralSection) => void }) {
           <div><span className="sc-state-mark is-ready"><Check size={15}/></span><span><strong>Acceso de administrador</strong><small>Sesión validada</small></span><span className="sc-state-word">Activo</span></div>
           <div><span className="sc-state-mark is-ready"><Check size={15}/></span><span><strong>Segundo factor</strong><small>Verificación MFA completada</small></span><span className="sc-state-word">Activo</span></div>
           <div><span className="sc-state-mark is-ready"><Check size={15}/></span><span><strong>Aplicaciones registradas</strong><small>13 CUT y Distribuidora</small></span><span className="sc-state-word">2 apps</span></div>
-          <div><span className="sc-state-mark"><span/></span><span><strong>Datos operativos</strong><small>Sin conexiones con las bases de cada negocio</small></span><span className="sc-state-word is-pending">Pendiente</span></div>
+          <div><span className="sc-state-mark"><span/></span><span><strong>Datos operativos</strong><small>Consultas aisladas, sin permisos de escritura</small></span><span className="sc-state-word is-pending">{loading ? 'Validando' : `${summary?.connectedSites ?? 0}/2`}</span></div>
         </div>
         <div className="sc-readiness-foot"><LockKeyhole size={15}/> Cada integración necesitará sus propios controles de acceso.</div>
       </section>
@@ -192,7 +235,7 @@ function ProjectMark({ project }: { project: RegisteredProject }) {
   </span>
 }
 
-function SitesView() {
+function SitesView({ summary, loading, refresh }: LiveProps) {
   return <div className="sc-section-view sc-sites-view">
     <div className="sc-page-heading sc-section-heading">
       <div>
@@ -230,12 +273,14 @@ function SitesView() {
         </article>
       ))}
     </div>
-    <p className="sc-project-footnote"><LockKeyhole size={15} strokeWidth={1.7}/> Cada aplicación mantiene su propio inicio de sesión. Las métricas aún no están sincronizadas.</p>
+    <LiveIntegrations summary={summary} loading={loading} refresh={refresh} />
+    <p className="sc-project-footnote"><LockKeyhole size={15} strokeWidth={1.7}/> Cada aplicación mantiene su acceso y su base separados. Central solo consulta resúmenes autorizados.</p>
   </div>
 }
 
-function SectionView({ section, navigate }: { section: Exclude<CentralSection,'resumen'>; navigate: (id: CentralSection) => void }) {
-  if (section === 'sitios') return <SitesView />
+function SectionView({ section, navigate, summary, loading, refresh }: { section: Exclude<CentralSection,'resumen'>; navigate: (id: CentralSection) => void } & LiveProps) {
+  if (section === 'sitios') return <SitesView summary={summary} loading={loading} refresh={refresh} />
+  if (section === 'estadisticas') return <div className="sc-section-view"><div className="sc-page-heading sc-section-heading"><div><span className="sc-eyebrow">DATOS / LECTURA SEGURA</span><h1>Estadísticas<span className="sc-period">.</span></h1><p className="sc-lead">Los indicadores reales que cada instalación permite consultar.</p></div></div><LiveIntegrations summary={summary} loading={loading} refresh={refresh} /></div>
   const item = SECTIONS[section]
   const Icon = item.Icon
   return <div className="sc-section-view">
@@ -263,6 +308,9 @@ export default function CentralDashboardClient({ initialSection, adminEmail }: {
   const [query, setQuery] = useState('')
   const [highlight, setHighlight] = useState(0)
   const [copied, setCopied] = useState(false)
+  const [summary, setSummary] = useState<IntegrationSummary | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(true)
+  const [summaryRefresh, setSummaryRefresh] = useState(0)
   const searchInput = useRef<HTMLInputElement>(null)
   const searchTrigger = useRef<HTMLButtonElement>(null)
   const paletteWasOpened = useRef(false)
@@ -277,6 +325,19 @@ export default function CentralDashboardClient({ initialSection, adminEmail }: {
     if (window.location.pathname + window.location.search !== path) window.history.pushState({ snoSection: next }, '', path)
     window.scrollTo({ top: 0, behavior: 'auto' })
   }, [])
+
+  useEffect(() => {
+    const abort = new AbortController()
+    setSummaryLoading(true)
+    fetch('/admin/api/integrations/summary', { cache: 'no-store', credentials: 'same-origin', signal: abort.signal })
+      .then(async res => { if (!res.ok) throw new Error('Integration not available'); return res.json() as Promise<IntegrationSummary> })
+      .then(data => { if (!abort.signal.aborted && Array.isArray(data.integrations)) setSummary(data) })
+      .catch(() => { if (!abort.signal.aborted) setSummary(null) })
+      .finally(() => { if (!abort.signal.aborted) setSummaryLoading(false) })
+    return () => abort.abort()
+  }, [summaryRefresh])
+
+  const refreshSummary = useCallback(() => setSummaryRefresh(prev => prev + 1), [])
 
   useEffect(() => {
     const pop = () => {
@@ -366,8 +427,12 @@ export default function CentralDashboardClient({ initialSection, adminEmail }: {
 
       <main className="sc-content" id="central-content">
         <div className="sc-content-tools"><span><ShieldCheck size={14}/> Sesión protegida con MFA</span><button type="button" onClick={copyLink}>{copied?<CheckCheck size={14}/>:<Copy size={14}/>} {copied?'Enlace copiado':'Copiar enlace'}</button></div>
-        {section === 'resumen' ? <Overview navigate={navigate}/> : <SectionView section={section} navigate={navigate}/>}
+        {section === 'resumen' ? <Overview navigate={navigate} summary={summary} loading={summaryLoading} refresh={refreshSummary}/> : <SectionView section={section} navigate={navigate} summary={summary} loading={summaryLoading} refresh={refreshSummary}/>}
       </main>
+      <nav className="sc-mobile-app-nav" aria-label="Navegación rápida de la aplicación">
+        {([{id:'resumen',label:'Inicio',Icon:LayoutGrid},{id:'sitios',label:'Apps',Icon:Globe2},{id:'estadisticas',label:'Datos',Icon:BarChart3}] as const).map(entry => <button key={entry.id} type="button" className={section === entry.id ? 'is-active' : ''} onClick={() => navigate(entry.id)} aria-current={section===entry.id ? 'page' : undefined}><entry.Icon size={21} strokeWidth={1.9}/><span>{entry.label}</span></button>)}
+        <button type="button" onClick={() => setMobileOpen(true)} aria-label="Abrir todas las secciones"><Menu size={21} strokeWidth={1.9}/><span>Más</span></button>
+      </nav>
       <footer className="sc-footer"><span>SNOSERVICE · CENTRAL</span><span>Herramientas diseñadas para trabajar, no para decorar.</span></footer>
     </div>
 
