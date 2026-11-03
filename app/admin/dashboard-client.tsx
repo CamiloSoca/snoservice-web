@@ -106,7 +106,6 @@ function Metric({ label, value, detail, Icon, tone }: {
 
 function LiveIntegrations({ summary, loading, refresh }: LiveProps) {
   const dist = summary?.integrations.find(item => item.id === 'distribuidora')
-  const cut = summary?.integrations.find(item => item.id === '13-cut')
   const num = (value: number | undefined) => typeof value === 'number' ? value.toLocaleString('es-UY') : '—'
   const uyu = (cents: number | undefined) => typeof cents === 'number'
     ? (cents / 100).toLocaleString('es-UY', { style: 'currency', currency: 'UYU', maximumFractionDigits: 0 }) : '—'
