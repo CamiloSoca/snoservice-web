@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server'
 import { currentSession } from '../../../../../lib/central/auth'
 
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
-
 type LinkState = 'connected' | 'unavailable' | 'pending'
 type Integration = {
   id: '13-cut' | 'distribuidora'
