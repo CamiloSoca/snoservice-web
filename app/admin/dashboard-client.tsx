@@ -6,10 +6,11 @@ import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Check,
   CheckCheck, ChevronDown, ChevronRight, Copy, CreditCard,
   ExternalLink, Fingerprint, Globe2, Keyboard, LayoutGrid, LockKeyhole,
-  LogOut, Menu, PanelLeftClose, PanelLeftOpen, Search, Settings2,
+  LogOut, Menu, PanelLeftClose, PanelLeftOpen, Package, Scissors, Search, Settings2,
   ShieldCheck, UsersRound, Workflow, X,
 } from 'lucide-react'
 import { centralLogout } from './actions'
+import { REGISTERED_PROJECTS, type RegisteredProject } from '../../lib/central/registered-projects'
 
 export type CentralSection =
   'resumen' | 'sitios' | 'clientes' | 'estadisticas' |
@@ -20,7 +21,7 @@ type NavEntry = { id: CentralSection; label: string; Icon: IconComponent; descri
 
 const NAV: NavEntry[] = [
   { id: 'resumen', label: 'Vista general', Icon: LayoutGrid, description: 'Estado de tu operación' },
-  { id: 'sitios', label: 'Sitios y apps', Icon: Globe2, description: 'Instalaciones e integraciones' },
+  { id: 'sitios', label: 'Sitios y apps', Icon: Globe2, description: '13 CUT y Distribuidora' },
   { id: 'clientes', label: 'Clientes', Icon: UsersRound, description: 'Cuentas y relaciones' },
   { id: 'estadisticas', label: 'Estadísticas', Icon: BarChart3, description: 'Datos e indicadores' },
   { id: 'facturacion', label: 'Facturación', Icon: CreditCard, description: 'Planes y cobros' },
@@ -34,7 +35,7 @@ const SECTIONS: Record<Exclude<CentralSection, 'resumen'>, {
 }> = {
   sitios: {
     label: 'Sitios y apps', overline: '01 / INSTALACIONES', title: 'Un sistema para cada negocio.',
-    description: 'Una vista única para gestionar dominios, aplicaciones e integraciones. Los sitios se incorporarán de forma individual, sin compartir accesos ni credenciales entre clientes.',
+    description: 'Dos aplicaciones registradas. Cada negocio conserva sus propios accesos, datos y permisos.',
     upcoming: ['Conexión aislada por proyecto', 'Estado y dominios de cada app', 'Acceso contextual a la instalación'], Icon: Globe2, number: '01',
   },
   clientes: {
@@ -111,14 +112,14 @@ function Overview({ navigate }: { navigate: (id: CentralSection) => void }) {
 
     <section className="sc-feature">
       <div className="sc-feature-main">
-        <div className="sc-feature-topline"><span>EL SIGUIENTE PASO</span><span>01 / 03</span></div>
+        <div className="sc-feature-topline"><span>TUS PROYECTOS</span><span>02 / REGISTRADOS</span></div>
         <div className="sc-feature-body">
           <span className="sc-feature-index">01</span>
-          <h2>De una idea a una<br/>plataforma conectada.</h2>
-          <p>La base administrativa está lista. El próximo hito es incorporar la primera instalación con permisos propios y datos aislados.</p>
-          <button className="sc-feature-action" type="button" onClick={() => navigate('sitios')}>Explorar sitios <ArrowUpRight size={17}/></button>
+          <h2>Dos negocios.<br/>Un punto de partida.</h2>
+          <p>13 CUT y Distribuidora ya figuran en Central. Abrí cada aplicación desde acá; sus datos siguen separados.</p>
+          <button className="sc-feature-action" type="button" onClick={() => navigate('sitios')}>Ver aplicaciones <ArrowUpRight size={17}/></button>
         </div>
-        <div className="sc-feature-bottom"><span>ESTADO ACTUAL</span><strong>Sin sitios conectados</strong></div>
+        <div className="sc-feature-bottom"><span>ESTADO ACTUAL</span><strong>2 apps registradas · Sin sincronización</strong></div>
       </div>
       <div className="sc-feature-side">
         <div className="sc-feature-side-header"><span>PLATAFORMA CENTRAL</span><Fingerprint size={21} strokeWidth={1.2}/></div>
@@ -127,19 +128,35 @@ function Overview({ navigate }: { navigate: (id: CentralSection) => void }) {
       </div>
     </section>
 
-    <div className="sc-section-title"><div><span className="sc-kicker">01 / PANORAMA</span><h2>En números</h2></div><p>Datos del espacio central, sin integraciones externas.</p></div>
+    <div className="sc-section-title"><div><span className="sc-kicker">01 / PANORAMA</span><h2>En números</h2></div><p>Registro de Central. Sin métricas externas.</p></div>
     <section className="sc-metrics" aria-label="Resumen de operación">
-      <Metric label="Sitios conectados" value="00" detail="Ninguna integración" Icon={Globe2}/>
-      <Metric label="Clientes vinculados" value="00" detail="Sin registros conectados" Icon={UsersRound}/>
-      <Metric label="Flujos activos" value="00" detail="Sin automatizaciones" Icon={Workflow}/>
+      <Metric label="Apps registradas" value={String(REGISTERED_PROJECTS.length).padStart(2, '0')} detail="Accesos independientes" Icon={Globe2}/>
+      <Metric label="Proyectos de clientes" value={String(REGISTERED_PROJECTS.filter(p => p.type === 'Cliente').length).padStart(2, '0')} detail="13 CUT · Barbería" Icon={UsersRound}/>
+      <Metric label="Integraciones de datos" value="00" detail="Aún sin sincronizar" Icon={Workflow}/>
       <Metric label="Facturación" value="—" detail="Aún sin configurar" Icon={CreditCard}/>
+    </section>
+
+    <section className="sc-registered-preview" aria-label="Aplicaciones registradas">
+      <div className="sc-registered-head"><div><span className="sc-kicker">02 / APLICACIONES</span><h2>Tus proyectos</h2></div>
+        <button type="button" onClick={() => navigate('sitios')}>Ver todos <ArrowRight size={16}/></button>
+      </div>
+      <div className="sc-registered-list">
+        {REGISTERED_PROJECTS.map(project => <div className="sc-registered-entry" key={project.id}>
+          <ProjectMark project={project} />
+          <div className="sc-registered-info"><strong>{project.name}</strong><small>{project.domain}</small></div>
+          <span className="sc-registered-kind">{project.category}</span>
+          <a href={project.adminUrl} target="_blank" rel="noopener noreferrer" aria-label={'Abrir ' + project.name}>
+            Abrir <ArrowUpRight size={15}/>
+          </a>
+        </div>)}
+      </div>
     </section>
 
     <div className="sc-lower-grid">
       <section className="sc-panel sc-next">
         <div className="sc-panel-heading"><span className="sc-kicker">02 / PRÓXIMAS ACCIONES</span><h2>Empezar bien.</h2><p>Tres módulos para construir el sistema desde una base ordenada.</p></div>
         <div className="sc-next-list">
-          <button type="button" onClick={() => navigate('sitios')}><span className="sc-next-icon"><Globe2 size={20}/></span><span><strong>Preparar el primer sitio</strong><small>Integración por proyecto, con permisos independientes</small></span><ArrowUpRight size={18}/></button>
+          <button type="button" onClick={() => navigate('sitios')}><span className="sc-next-icon"><Globe2 size={20}/></span><span><strong>Abrir tus aplicaciones</strong><small>Accesos directos a 13 CUT y Distribuidora</small></span><ArrowUpRight size={18}/></button>
           <button type="button" onClick={() => navigate('clientes')}><span className="sc-next-icon"><UsersRound size={20}/></span><span><strong>Organizar clientes</strong><small>Relaciones comerciales separadas de las instalaciones</small></span><ArrowUpRight size={18}/></button>
           <button type="button" onClick={() => navigate('automatizaciones')}><span className="sc-next-icon"><Workflow size={20}/></span><span><strong>Diseñar automatizaciones</strong><small>Flujos trazables y controlados desde Central</small></span><ArrowUpRight size={18}/></button>
         </div>
@@ -149,8 +166,8 @@ function Overview({ navigate }: { navigate: (id: CentralSection) => void }) {
         <div className="sc-readiness-list">
           <div><span className="sc-state-mark is-ready"><Check size={15}/></span><span><strong>Acceso de administrador</strong><small>Sesión validada</small></span><span className="sc-state-word">Activo</span></div>
           <div><span className="sc-state-mark is-ready"><Check size={15}/></span><span><strong>Segundo factor</strong><small>Verificación MFA completada</small></span><span className="sc-state-word">Activo</span></div>
-          <div><span className="sc-state-mark"><span/></span><span><strong>Primer sitio</strong><small>Sin instalaciones incorporadas</small></span><span className="sc-state-word is-pending">Pendiente</span></div>
-          <div><span className="sc-state-mark"><span/></span><span><strong>Datos operativos</strong><small>Sin fuentes conectadas</small></span><span className="sc-state-word is-pending">Pendiente</span></div>
+          <div><span className="sc-state-mark is-ready"><Check size={15}/></span><span><strong>Aplicaciones registradas</strong><small>13 CUT y Distribuidora</small></span><span className="sc-state-word">2 apps</span></div>
+          <div><span className="sc-state-mark"><span/></span><span><strong>Datos operativos</strong><small>Sin conexiones con las bases de cada negocio</small></span><span className="sc-state-word is-pending">Pendiente</span></div>
         </div>
         <div className="sc-readiness-foot"><LockKeyhole size={15}/> Cada integración necesitará sus propios controles de acceso.</div>
       </section>
@@ -168,7 +185,57 @@ function Overview({ navigate }: { navigate: (id: CentralSection) => void }) {
   </div>
 }
 
+function ProjectMark({ project }: { project: RegisteredProject }) {
+  const Icon = project.id === '13-cut' ? Scissors : Package
+  return <span className={'sc-project-mark' + (project.id === 'distribuidora' ? ' is-distributor' : '')}>
+    <Icon size={22} strokeWidth={1.65} aria-hidden="true" />
+  </span>
+}
+
+function SitesView() {
+  return <div className="sc-section-view sc-sites-view">
+    <div className="sc-page-heading sc-section-heading">
+      <div>
+        <span className="sc-eyebrow">01 / INSTALACIONES</span>
+        <h1>Sitios y apps<span className="sc-period">.</span></h1>
+        <p className="sc-lead">Tus aplicaciones en un mismo lugar, sin mezclar sus datos.</p>
+      </div>
+      <span className="sc-heading-aside"><span className="sc-small-dot" /> {REGISTERED_PROJECTS.length} registradas</span>
+    </div>
+    <div className="sc-project-grid">
+      {REGISTERED_PROJECTS.map(project => (
+        <article className="sc-project-card" key={project.id}>
+          <div className="sc-project-card-top">
+            <ProjectMark project={project} />
+            <span className="sc-project-kind">{project.type}</span>
+          </div>
+          <div className="sc-project-card-body">
+            <p className="sc-project-category">{project.category}</p>
+            <h2>{project.name}</h2>
+            <p>{project.summary}</p>
+            <div className="sc-project-tags">{project.capabilities.map(tag => <span key={tag}>{tag}</span>)}</div>
+          </div>
+          <div className="sc-project-card-footer">
+            <span className="sc-project-domain"><Globe2 size={15} strokeWidth={1.7}/>{project.domain}</span>
+            <div className="sc-project-actions">
+              <a className="sc-project-action is-primary" href={project.adminUrl} target="_blank" rel="noopener noreferrer">
+                Abrir {project.id === '13-cut' ? 'panel' : 'aplicación'} <ExternalLink size={16} />
+              </a>
+              {project.websiteUrl !== project.adminUrl &&
+                <a className="sc-project-action" href={project.websiteUrl} target="_blank" rel="noopener noreferrer">
+                  Ver sitio <ArrowUpRight size={16} />
+                </a>}
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+    <p className="sc-project-footnote"><LockKeyhole size={15} strokeWidth={1.7}/> Cada aplicación mantiene su propio inicio de sesión. Las métricas aún no están sincronizadas.</p>
+  </div>
+}
+
 function SectionView({ section, navigate }: { section: Exclude<CentralSection,'resumen'>; navigate: (id: CentralSection) => void }) {
+  if (section === 'sitios') return <SitesView />
   const item = SECTIONS[section]
   const Icon = item.Icon
   return <div className="sc-section-view">
@@ -280,7 +347,7 @@ export default function CentralDashboardClient({ initialSection, adminEmail }: {
         <div className="sc-nav-group"><span className="sc-nav-heading">PLATAFORMA</span>{firstGroup.map(item=><NavButton key={item.id} item={item} selected={section===item.id} navigate={navigate}/>)}</div>
         <div className="sc-nav-group"><span className="sc-nav-heading">ADMINISTRACIÓN</span>{secondGroup.map(item=><NavButton key={item.id} item={item} selected={section===item.id} navigate={navigate}/>)}</div>
       </nav>
-      <div className="sc-sidebar-bottom"><div className="sc-sidebar-note"><span className="sc-small-dot"/><div><strong>Central está operativo</strong><small>Sin integraciones conectadas</small></div></div><a href="/" className="sc-public-link" aria-label="Ir al sitio público de SNOSERVICE"><ExternalLink size={15}/> Sitio público <ArrowUpRight size={14}/></a></div>
+      <div className="sc-sidebar-bottom"><div className="sc-sidebar-note"><span className="sc-small-dot"/><div><strong>Central está operativo</strong><small>2 apps registradas</small></div></div><a href="/" className="sc-public-link" aria-label="Ir al sitio público de SNOSERVICE"><ExternalLink size={15}/> Sitio público <ArrowUpRight size={14}/></a></div>
     </aside>
     <div className="sc-main">
       <header className="sc-header">
