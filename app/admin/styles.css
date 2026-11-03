@@ -454,3 +454,14 @@
  .sc-mobile-app-nav{padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
 }
 @media(prefers-reduced-motion:reduce){.sc-mobile-app-nav button{transition:none}}
+
+/* The home-screen installation uses its own app-style sign-in screen. */
+@media (display-mode: standalone) and (max-width: 600px) {
+ .sno-access{background:#111814}
+ .sno-access-stage{min-height:100dvh}
+ .sno-access-topbar{height:calc(72px + env(safe-area-inset-top,0px));flex-basis:auto;padding-top:max(16px,env(safe-area-inset-top,0px))}
+ .sno-access-composition{display:flex;flex:1;flex-direction:column;align-items:stretch;justify-content:center;gap:0;min-height:0;max-width:480px;margin:0 auto;padding:15px 18px calc(36px + env(safe-area-inset-bottom,0px))}
+ .sno-access-editorial{display:none}
+ .sno-access-card{min-height:0;padding:31px 24px 35px;border:1px solid #3b4a3d;border-radius:18px;box-shadow:0 20px 55px #0005}
+ .sno-access-footer{display:none}
+}
