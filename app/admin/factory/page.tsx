@@ -1,3 +1,5 @@
+export const instant = false
+
 import { connection } from 'next/server'
 import { redirect } from 'next/navigation'
 import { requireCentralAdmin } from '../../../lib/central/auth'
