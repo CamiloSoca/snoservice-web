@@ -96,6 +96,7 @@ export default async function FactoryPage({searchParams}: {searchParams: Promise
       <div className="af-top-right"><span className={'af-connection '+(ready?'af-live':'')}><i/>{ready?'Cola conectada':'Sin conexión'}</span><a className="af-back" href="/admin?section=automatizaciones">Central <ArrowUpRight size={14}/></a></div>
     </div></header>
     <div className="af-content">
+      <a href="/admin/factory/v2" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,padding:"13px 15px",border:"1px solid #42664d",borderRadius:10,background:"#1b2b21",color:"#b8e8c7",marginBottom:20,fontSize:13,fontWeight:650}}><span>Explorar Factory 2.0 · Prototipo interactivo</span><ArrowRight size={17}/></a>
       <div className="af-hero"><div><span className="af-kicker">01 / DEVELOPMENT WORKSPACE</span><h1>Tu centro de<br className="af-mobile-break"/> desarrollo<span>.</span></h1><p>Proyectos, tareas y agentes en un solo lugar.</p></div><a className="af-refresh" href={'/admin/factory?project='+project.id}><Activity size={16}/> Actualizar</a></div>
       <section className="af-metrics" aria-label="Resumen de la fábrica">
         <div><span>Proyectos</span><strong>{String(projects.length).padStart(2,'0')}</strong><small>Registrados</small></div>
