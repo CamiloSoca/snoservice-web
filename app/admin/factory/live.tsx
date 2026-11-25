@@ -1,6 +1,6 @@
 import { Activity, ArrowLeft, ArrowRight, ArrowUpRight, Check, ChevronRight, Circle, Clock, CreditCard, GitBranch, GitPullRequest, Home, LayoutGrid, LockKeyhole, Monitor, Package, Plus, Scissors, ShieldCheck, Workflow } from 'lucide-react'
 import { redirect } from 'next/navigation'
-import { requireCentralAdmin } from '../../../../lib/central/auth'
+import { requireCentralAdmin } from '../../../lib/central/auth'
 import './workspace.css'
 
 const QUEUE='CamiloSoca/Finanzas'
