@@ -284,7 +284,7 @@ function SectionView({ section, navigate, summary, loading, refresh }: { section
   const Icon = item.Icon
   return <div className="sc-section-view">
     <div className="sc-page-heading sc-section-heading"><div><span className="sc-eyebrow">{item.overline}</span><h1>{item.label}<span className="sc-period">.</span></h1><p className="sc-lead">{item.description}</p></div><span className="sc-heading-aside"><span className="sc-muted-dot"/> En preparación</span></div>
-    {section === 'automatizaciones' && <p style={{margin:'0 0 20px'}}><a href="/admin/factory" style={{color:'#1ECB62',fontWeight:700}}>Abrir AI Factory · Piloto de Finanzas ↗</a></p>}
+    {section === 'automatizaciones' && <p style={{margin:'0 0 20px'}}><a href="/admin/factory" style={{color:'#1ECB62',fontWeight:700}}>Abrir AI Factory ↗</a></p>}
     <div className="sc-section-grid">
       <section className="sc-section-primary">
         <div className="sc-section-watermark">{item.number}</div>
