@@ -16,14 +16,42 @@ type Request={project:string;title:string;description:string;priority:string}
 type Job={number:number;state:string;state_reason?:string;created_at:string;body:string;request:Request;project:Project}
 type Entry={stage:string;message:string;pr?:string;commit?:string;created:string}
 const stages=['Análisis','Desarrollo','Validación','Entrega']
-async function api(path:string,method='GET',body?:unknown){
- const token=process.env.FACTORY_QUEUE_TOKEN
- if(!token)throw Error('Queue unavailable')
- const response=await fetch('https://api.github.com/repos/'+QUEUE+path,{method,headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','Content-Type':'application/json'},cache:'no-store',redirect:'error',signal:AbortSignal.timeout(10000),...(body===undefined?{}:{body:JSON.stringify(body)})})
- if(!response.ok)throw Error('Queue unavailable')
- return response.json()
+type QueueFailureCode='missing'|'unauthorized'|'forbidden'|'rate'|'not-found'|'repository'|'network'|'response'|'http'
+class QueueFailure extends Error {
+ constructor(public readonly code:QueueFailureCode,public readonly operation:string,public readonly status?:number){super('Factory queue: '+code)}
 }
-async function privateQueue(){const r=await api('');if(r.private!==true||r.has_issues!==true||String(r.full_name).toLowerCase()!==QUEUE.toLowerCase())throw Error('Not private')}
+const queueMessages:Record<QueueFailureCode,string>={
+ missing:'Falta FACTORY_QUEUE_TOKEN en Vercel.',
+ unauthorized:'GitHub rechazó el token (401). Puede haber vencido o haber sido revocado. Actualizá FACTORY_QUEUE_TOKEN en Vercel.',
+ forbidden:'GitHub rechazó el acceso (403). Verificá los permisos del token en Finanzas y las restricciones de GitHub.',
+ rate:'GitHub alcanzó un límite de solicitudes (403/429). Reintentá más tarde.',
+ 'not-found':'GitHub no encuentra el recurso o el token no tiene acceso a Finanzas (404).',
+ repository:'La cola no cumple los requisitos de repositorio privado con Issues habilitados.',
+ network:'No se pudo conectar con GitHub. Reintentá actualizando la página.',
+ response:'GitHub devolvió una respuesta inesperada.',
+ http:'GitHub devolvió un error HTTP.'
+}
+function diagnose(err:unknown,phase:string){
+ const failure=err instanceof QueueFailure?err:new QueueFailure('response',phase)
+ console.warn('[factory-queue]',{phase,code:failure.code,operation:failure.operation,status:failure.status})
+ return queueMessages[failure.code]+(failure.code==='http'&&failure.status?' ('+failure.status+')':'')+' Paso: '+failure.operation+'.'
+}
+async function api(path:string,method='GET',body?:unknown){
+ const operation=path===''?'Verificar repositorio':path.startsWith('/issues/')?'Consultar actividad':method==='POST'?'Crear solicitud':'Leer solicitudes'
+ const token=process.env.FACTORY_QUEUE_TOKEN?.trim()
+ if(!token)throw new QueueFailure('missing',operation)
+ let response:Response
+ try{
+  response=await fetch('https://api.github.com/repos/'+QUEUE+path,{method,headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'SNOSERVICE-Factory'},cache:'no-store',redirect:'error',signal:AbortSignal.timeout(10000),...(body===undefined?{}:{body:JSON.stringify(body)})})
+ }catch{throw new QueueFailure('network',operation)}
+ if(!response.ok){
+  const status=response.status
+  const code=status===401?'unauthorized':status===404?'not-found':status===429||(status===403&&(response.headers.get('x-ratelimit-remaining')==='0'||response.headers.has('retry-after')))?'rate':status===403?'forbidden':'http'
+  throw new QueueFailure(code,operation,status)
+ }
+ try{return await response.json()}catch{throw new QueueFailure('response',operation)}
+}
+async function privateQueue(){const r=await api('');if(r.private!==true||r.has_issues!==true||String(r.full_name).toLowerCase()!==QUEUE.toLowerCase())throw new QueueFailure('repository','Verificar repositorio')}
 function parseJob(x:any):Job|null{
  if(x.pull_request||String(x.user?.login).toLowerCase()!=='camilosoca'||typeof x.body!=='string'||!x.body.startsWith(MARK)||!String(x.title).startsWith('[Factory BUILD] ')||!Number.isSafeInteger(x.number)||x.number<1)return null
  try{const request=JSON.parse(x.body.slice(MARK.length)) as Request;const project=projects.find(p=>p.id===request.project&&p.id!=='cut');if(!project||typeof request.title!=='string'||request.title.length>100||typeof request.description!=='string'||request.description.length>2000||!['Alta','Normal','Baja'].includes(request.priority))return null;return {...x,request,project}}catch{return null}
@@ -35,13 +63,13 @@ async function create(form:FormData){
  const title=String(form.get('title')??'').trim(),description=String(form.get('description')??'').trim(),priority=String(form.get('priority')??'')
  if(!project||title.length<3||title.length>100||description.length<10||description.length>2000||!['Alta','Normal','Baja'].includes(priority))redirect('/admin/factory?result=invalid')
  let id=0
- try{await privateQueue();const r=await api('/issues','POST',{title:'[Factory BUILD] '+project.name+' · '+title,body:MARK+JSON.stringify({project:project.id,title,description,priority})});id=r.number;if(!Number.isSafeInteger(id)||id<1)throw Error('Invalid issue')}catch{redirect('/admin/factory?result=error')}
+ try{await privateQueue();const r=await api('/issues','POST',{title:'[Factory BUILD] '+project.name+' · '+title,body:MARK+JSON.stringify({project:project.id,title,description,priority})});id=r.number;if(!Number.isSafeInteger(id)||id<1)throw Error('Invalid issue')}catch(err){diagnose(err,'create');redirect('/admin/factory?result=error')}
  redirect('/admin/factory?job='+id+'&result=created#detail')
 }
 function Icon({p}:{p:Project}){return <span className={'f2-project-icon '+p.tone}><p.icon size={19}/></span>}
 export default async function LiveWorkspace({params}:{params:{project?:string;job?:string;result?:string;view?:string}}){
- let jobs:Job[]=[],ready=false
- try{await privateQueue();const items=await api('/issues?state=all&per_page=100&sort=created&direction=desc');if(!Array.isArray(items))throw Error();jobs=items.map(parseJob).filter((j):j is Job=>j!==null);ready=true}catch{}
+ let jobs:Job[]=[],ready=false,queueError=''
+ try{await privateQueue();const items=await api('/issues?state=all&per_page=100&sort=created&direction=desc');if(!Array.isArray(items))throw Error();jobs=items.map(parseJob).filter((j):j is Job=>j!==null);ready=true}catch(err){queueError=diagnose(err,'read')}
  const p=projects.find(x=>x.id===params.project)
  const visible=jobs.filter(j=>!p||j.project.id===p.id)
  const selected=visible.find(j=>String(j.number)===params.job)??visible[0]
@@ -54,7 +82,7 @@ export default async function LiveWorkspace({params}:{params:{project?:string;jo
  const href=(id?:string,job?:number)=>'/admin/factory'+(id||job?'?'+[id?'project='+id:'',job?'job='+job:''].filter(Boolean).join('&'):'')
  return <div className="f2"><aside className="f2-sidebar"><a className="f2-brand" href="/admin/factory"><img src="/logo.png" alt="SNOSERVICE"/><span><strong>SNOSERVICE</strong><small>FACTORY</small></span></a><span className="f2-nav-label">WORKSPACE</span><nav><a className="f2-secondary" href="/admin/factory"><Home size={17}/> Centro de operaciones</a><a className="f2-secondary" href="/admin/factory?view=new"><Plus size={17}/> Nueva tarea</a></nav><span className="f2-nav-label">PROYECTOS</span><div className="f2-side-projects">{projects.map(x=><a className="f2-secondary" key={x.id} href={href(x.id)}><x.icon size={16}/>{x.name}{x.id==='cut'&&<LockKeyhole size={13}/>}</a>)}</div><div className="f2-sidebar-foot"><a href="/admin?section=automatizaciones"><ArrowLeft size={15}/> Volver a Central</a></div></aside>
  <main className="f2-main"><header className="f2-header"><div className="f2-breadcrumb"><span>Workspace</span><ChevronRight size={13}/><strong>Factory</strong></div><div className="f2-header-actions"><a className="f2-pilot" href="/admin?section=automatizaciones">Central <ArrowUpRight size={13}/></a><a className="f2-primary" href={'/admin/factory?view=new'+(p&&p.id!=='cut'?'&project='+p.id:'')}><Plus size={17}/> Nueva tarea</a></div></header>
- <div className="f2-content"><div className="f2-demo-banner"><span>{ready?'● Cola privada conectada':'○ Cola no disponible'}</span><small>Motor local: conexión no verificada · Runner v0.4</small></div><div className="f2-heading"><div><span className="f2-kicker">SNOSERVICE / DEVELOPMENT</span><h1>Centro de operaciones<span>.</span></h1><p>Desarrollo real en ramas aisladas. Entregas mediante pull request.</p></div><a className="f2-secondary" href={href(p?.id,selected?.number)}><Activity size={15}/> Actualizar</a></div>
+ <div className="f2-content"><div className="f2-demo-banner"><span>{ready?'● Cola privada conectada':'○ Cola no disponible'}</span><small>Motor local: conexión no verificada · Runner v0.4.1</small></div>{queueError&&<div role="alert" className="f2-note" style={{padding:'12px 14px',border:'1px solid #765f3b',borderRadius:8,background:'#2c251a',color:'#ecd1a0',marginTop:12}}><strong>Diagnóstico de la cola</strong><p style={{margin:'5px 0'}}>{queueError}</p><a href="https://vercel.com/snoservice/snoservice-web/settings/environment-variables" target="_blank" rel="noreferrer" style={{textDecoration:'underline'}}>Configuración de variables en Vercel</a></div>}<div className="f2-heading"><div><span className="f2-kicker">SNOSERVICE / DEVELOPMENT</span><h1>Centro de operaciones<span>.</span></h1><p>Desarrollo real en ramas aisladas. Entregas mediante pull request.</p></div><a className="f2-secondary" href={href(p?.id,selected?.number)}><Activity size={15}/> Actualizar</a></div>
  <div className="f2-project-strip">{projects.map(x=><a className="f2-secondary" key={x.id} href={href(x.id)}><Icon p={x}/><span>{x.name}<small>{x.id==='cut'?'Protegido':x.base}</small></span></a>)}</div>
  <div className="f2-metrics"><div><LayoutGrid size={19}/><span><strong>3</strong><small>Proyectos habilitados</small></span></div><div><Clock size={19}/><span><strong>{ready?jobs.filter(j=>j.state==='open').length:'—'}</strong><small>Abiertas</small></span></div><div><GitPullRequest size={19}/><span><strong>{ready?jobs.filter(j=>j.state==='closed'&&j.state_reason==='completed').length:'—'}</strong><small>Cerradas como completadas</small></span></div><div><ShieldCheck size={19}/><span><strong>{ready?jobs.filter(j=>j.state==='closed'&&j.state_reason!=='completed').length:'—'}</strong><small>Otras cerradas</small></span></div></div>
  {params.result&&<p className="f2-protected" role="status">{params.result==='created'?'Tarea real guardada. El runner v0.4 la recogerá cuando esté activo.':params.result==='invalid'?'Revisá los campos.':'No se pudo crear la tarea.'}</p>}
