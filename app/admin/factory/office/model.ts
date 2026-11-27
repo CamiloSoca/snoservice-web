@@ -9,7 +9,7 @@ export const ROLES = [
  {id:'sno_devops',name:'DevOps',color:'#a1b96e',stage:'review',description:'Build e infraestructura'}
 ] as const
 export type Stage='analyze'|'develop'|'validate'|'review'|'blocked'|'paused'|'queued'|'unknown'
-export type Task={id:number;title:string;project:string;stage:Stage;at:string|null;reason:string|null;closed?:boolean;attempts?:Attempt[]}
+export type Task={id:number;title:string;project:string;stage:Stage;at:string|null;reason:string|null;closed?:boolean;preferredRole?:string;attempts?:Attempt[]}
 export type Snapshot={mode:'demo'|'live';connected:boolean;checkedAt:string|null;tasks:Task[]}
 export const STAGES:Record<Stage,string>={analyze:'Análisis',develop:'Desarrollo',validate:'Validación',review:'Revisión',blocked:'Bloqueada',paused:'Pausada',queued:'En cola',unknown:'Sin verificar'}
 const projects:Record<string,string>={maracana:'Maracaná',finanzas:'Finanzas',central:'SNOSERVICE'}
@@ -23,7 +23,8 @@ export function parseTask(raw:unknown,includeClosed=false):Task|null{
  const marker=markers.find(m=>String(x.body).startsWith(m));if(!marker)return null
  try{
   const r=record(JSON.parse(x.body.slice(marker.length)));if(!r||typeof r.project!=='string'||!Object.hasOwn(projects,r.project)||typeof r.title!=='string'||r.title.length<3||r.title.length>100||typeof r.description!=='string'||r.description.length>20000||!['Alta','Normal','Baja'].includes(String(r.priority)))return null
-  return {id:Number(x.number),title:r.title,project:projects[r.project],stage:'queued',at:null,reason:null,closed:x.state==='closed'}
+  const preferred=/^Preferencia del administrador: delegá esta solicitud al especialista (sno_[a-z]+)\./.exec(r.description)?.[1]
+  return {id:Number(x.number),title:r.title,project:projects[r.project],stage:'queued',at:null,reason:null,closed:x.state==='closed',...(knownRole(preferred)?{preferredRole:preferred}:{})}
  }catch{return null}
 }
 export function withEvents(task:Task,raw:unknown):Task{
@@ -102,3 +103,35 @@ export function readAttempts(issue:number,comments:unknown[]):Attempt[]{
 }
 export const WORKER_LABELS:Record<Worker['status'],string>={pending:'Inicio pendiente',running:'En ejecución al observar',interrupted:'Interrumpido',completed:'Completado',error:'Error',closed:'Cerrado',unknown:'Sin estado'}
 export const ATTEMPT_LABELS:Record<Attempt['state'],string>={started:'Inicio registrado',observing:'Observación durante el turno',completed:'Turno finalizado',quota:'Interrumpido por cuota',interrupted:'Interrumpido'}
+
+type StudioStatus='idle'|'working'|'observed'|'paused'|'requested'
+export function studioState(snapshot:Snapshot,watch?:number){
+ const now=Date.parse(snapshot.checkedAt??'')
+ const open=snapshot.tasks.filter(t=>!t.closed)
+ const fresh=(at:string|null|undefined,age:number)=>{const then=Date.parse(at??'');return Number.isFinite(now)&&Number.isFinite(then)&&now>=then&&now-then<=age}
+ const executing=(t:Task)=>!t.closed&&['analyze','develop','validate'].includes(t.stage)&&(fresh(t.at,5*60_000)||(t.attempts?.[0]?.state==='observing'&&fresh(t.attempts[0].at,90_000)))
+ const task=(watch?snapshot.tasks.find(t=>t.id===watch):undefined)??open.find(executing)??open.find(t=>t.stage==='paused'&&t.reason!=='Revisión manual')??open.find(t=>t.stage==='queued')??open[0]
+ const seats:Record<string,StudioStatus>=Object.fromEntries([...ROLES.map(r=>r.id),'orchestrator'].map(id=>[id,'idle']))
+ let kind='idle',label='Sin tareas activas'
+ if(snapshot.mode==='demo'){
+  for(const r of ROLES)if(r.stage==='develop')seats[r.id]='working'
+  seats.orchestrator='working'
+  return {task:snapshot.tasks[0],seats,kind:'working',label:'Desarrollo simulado',open:snapshot.tasks.length}
+ }
+ if(!snapshot.connected)return {task:undefined,seats,kind:'unknown',label:'Cola no disponible',open:0}
+ if(!task)return {task,seats,kind,label,open:open.length}
+ if(task.closed)return {task,seats,kind:'idle',label:'Tarea cerrada',open:open.length}
+ if(task.preferredRole&&knownRole(task.preferredRole))seats[task.preferredRole]='requested'
+ const attempt=task.attempts?.[0]
+ for(const r of ROLES){
+  if(task.attempts?.some(a=>a.workers.some(w=>w.role===r.id)))seats[r.id]='observed'
+  if(attempt?.state==='observing'&&fresh(attempt.at,90_000)&&executing(task)&&attempt.workers.some(w=>w.role===r.id&&w.status==='running'))seats[r.id]='working'
+ }
+ if(task.stage==='paused'){kind='paused';label=task.reason==='Cuota de Codex'?'Pausada · cuota':task.reason==='Revisión manual'?'Revisión pendiente':'En pausa';seats.orchestrator='paused'}
+ else if(task.stage==='queued'){label='En cola'}
+ else if(task.stage==='blocked'){kind='paused';label='Bloqueada'}
+ else if(task.stage==='review'){label='Entrega en revisión'}
+ else if(executing(task)){kind='working';label=STAGES[task.stage];seats.orchestrator='working'}
+ else{kind='unknown';label='Último estado: '+STAGES[task.stage]}
+ return {task,seats,kind,label,open:open.length}
+}

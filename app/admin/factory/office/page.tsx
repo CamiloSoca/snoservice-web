@@ -1,14 +1,11 @@
-export const instant = false
 import {connection} from 'next/server'
+import {redirect} from 'next/navigation'
 import {requireCentralAdmin} from '../../../../lib/central/auth'
-import {readOffice} from './queue'
-import {DEMO} from './model'
-import Office from './office'
-import './office.css'
-export default async function FactoryOffice({searchParams}:{searchParams:Promise<{mode?:string}>}){
+export const instant=false
+// Legacy URL only; Factory itself renders the studio directly.
+export default async function LegacyOffice({searchParams}:{searchParams:Promise<{mode?:string}>}){
  await connection()
  await requireCentralAdmin()
  const {mode}=await searchParams
- const snapshot=mode==='demo'?DEMO:await readOffice()
- return <Office snapshot={snapshot}/>
+ redirect(mode==='demo'?'/admin/factory?mode=demo':'/admin/factory')
 }

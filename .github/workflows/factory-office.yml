@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'app/admin/factory/**'
+      - 'package.json'
+      - 'package-lock.json'
       - 'tests/*.test.mjs'
       - 'scripts/hermes-office-bridge.mjs'
       - 'scripts/check-office-visual.mjs'
@@ -44,7 +46,8 @@ jobs:
           cp tests/fixtures/factory-office-page.tsx.txt app/factory-office-ci/page.tsx
       - name: Browser checks with synthetic data
         run: |
-          npm run dev -- --hostname 127.0.0.1 --port 3019 > /tmp/office-next.log 2>&1 &
+          npm run build
+          npm run start -- --hostname 127.0.0.1 --port 3019 > /tmp/office-next.log 2>&1 &
           pid=$!
           trap 'kill "$pid" 2>/dev/null || true; rm -rf app/factory-office-ci' EXIT
           for i in $(seq 1 60); do
