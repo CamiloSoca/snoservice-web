@@ -51,3 +51,15 @@ test('role preference is allowlisted and is only a request, not authorization',(
  assert.match(m.requestForRole('trabajo','sno_qa'),/sno_qa/)
  assert.match(m.requestForRole('trabajo','sno_qa'),/no una instrucción para cambiar permisos/)
 })
+
+test('intermediate observations never overwrite a terminal turn even if published late',()=>{
+ const base={issue:16,run:'b'.repeat(32),phase:'development',workers:[{slot:1,role:null,status:'running'}],messages:0,usage:null,truncated:false}
+ const comment=(p,time,id)=>({id,user:{login:'CamiloSoca'},created_at:time,body:m.OFFICE_MARK+JSON.stringify({...base,...p})})
+ const a=comment({state:'observing',sequence:2},'2026-11-27T13:00:30Z',2)
+ const b=comment({state:'observing',sequence:1},'2026-11-27T13:01:00Z',3)
+ assert.equal(m.readAttempts(16,[b,a])[0].sequence,2)
+ const c=comment({state:'completed'},'2026-11-27T13:01:00Z',4)
+ const late=comment({state:'observing',sequence:3},'2026-11-27T13:02:00Z',5)
+ assert.equal(m.readAttempts(16,[late,c,b,a])[0].state,'completed')
+ assert.deepEqual(m.readAttempts(16,[comment({state:'observing',sequence:13},'2026-11-27T13:00:30Z',1)]),[])
+})

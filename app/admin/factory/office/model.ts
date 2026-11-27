@@ -52,7 +52,7 @@ export const OFFICE_MARK='SNOSERVICE_FACTORY_OFFICE_V1\n'
 const workerStates=['pending','running','interrupted','completed','error','closed','unknown'] as const
 export type Worker={slot:number;role:string|null;status:typeof workerStates[number]}
 const usageKeys=['input_tokens','cached_input_tokens','output_tokens','reasoning_output_tokens'] as const
-export type Attempt={run:string;phase:'development'|'visual_review';state:'started'|'completed'|'quota'|'interrupted';at:string;workers:Worker[];messages:number|null;usage:Partial<Record<typeof usageKeys[number],number>>|null;truncated:boolean}
+export type Attempt={run:string;phase:'development'|'visual_review';state:'started'|'observing'|'completed'|'quota'|'interrupted';sequence?:number;at:string;workers:Worker[];messages:number|null;usage:Partial<Record<typeof usageKeys[number],number>>|null;truncated:boolean}
 export function knownRole(value:unknown):value is typeof ROLES[number]['id']{return typeof value==='string'&&ROLES.some(r=>r.id===value)}
 export function requestForRole(description:string,role:unknown):string|null{
  if(role===null||role===undefined||role==='')return description
@@ -63,7 +63,8 @@ function count(value:unknown,max=1e12):value is number{return typeof value==='nu
 function parseObservation(value:unknown,at:string,finished:boolean):Attempt|null{
  const e=record(value);if(!e||typeof e.run!=='string'||!/^[a-f0-9]{32}$/.test(e.run)||!(e.phase==='development'||e.phase==='visual_review'))return null
  if(!finished){if(e.state!=='started')return null;return {run:e.run,phase:e.phase,state:'started',at,workers:[],messages:null,usage:null,truncated:false}}
- if(!(e.state==='completed'||e.state==='quota'||e.state==='interrupted')||!Array.isArray(e.workers)||e.workers.length>24||!count(e.messages,1000)||typeof e.truncated!=='boolean')return null
+ if(!(e.state==='completed'||e.state==='quota'||e.state==='interrupted'||e.state==='observing')||!Array.isArray(e.workers)||e.workers.length>24||!count(e.messages,1000)||typeof e.truncated!=='boolean')return null
+ if(e.state==='observing'&&(!count(e.sequence,12)||e.sequence<1))return null
  const workers:Worker[]=[]
  for(const raw of e.workers){
   const w=record(raw);if(!w||!count(w.slot,24)||w.slot<1||workers.some(x=>x.slot===w.slot)||!(w.role===null||knownRole(w.role))||typeof w.status!=='string'||!workerStates.some(s=>s===w.status))return null
@@ -71,14 +72,14 @@ function parseObservation(value:unknown,at:string,finished:boolean):Attempt|null
  }
  const usage:NonNullable<Attempt['usage']>={}
  if(e.usage!==null){const u=record(e.usage);if(!u)return null;for(const key of usageKeys){if(u[key]!==undefined){if(!count(u[key]))return null;usage[key]=u[key]}}}
- return {run:e.run,phase:e.phase,state:e.state,at,workers,messages:e.messages,usage:Object.keys(usage).length?usage:null,truncated:e.truncated}
+ return {run:e.run,phase:e.phase,state:e.state,...(e.state==='observing'?{sequence:Number(e.sequence)}:{}),at,workers,messages:e.messages,usage:Object.keys(usage).length?usage:null,truncated:e.truncated}
 }
 export function readAttempts(issue:number,comments:unknown[]):Attempt[]{
  const observed=new Map<string,Attempt>()
  // GitHub returns descending comments; chronological processing avoids a
  // delayed start replacing a finish. Finishes are valid even if the start fell
  // outside the bounded history window.
- const ordered=comments.map(record).filter((x):x is Record<string,unknown>=>!!x&&typeof x.created_at==='string'&&Number.isFinite(Date.parse(x.created_at))).sort((a,b)=>Date.parse(String(a.created_at))-Date.parse(String(b.created_at)))
+ const ordered=comments.map(record).filter((x):x is Record<string,unknown>=>!!x&&typeof x.created_at==='string'&&Number.isFinite(Date.parse(x.created_at))).sort((a,b)=>Date.parse(String(a.created_at))-Date.parse(String(b.created_at))||(count(a.id)&&count(b.id)?a.id-b.id:0))
  for(const x of ordered){
   if(!own(x.user)||typeof x.body!=='string'||x.body.length>16000)continue
   const finished=x.body.startsWith(OFFICE_MARK)
@@ -89,11 +90,15 @@ export function readAttempts(issue:number,comments:unknown[]):Attempt[]{
    const attempt=parseObservation(finished?data:data.office,String(x.created_at),finished)
    if(!attempt)continue
    const prior=observed.get(attempt.run)
-   if(prior&&(prior.phase!==attempt.phase||prior.state!=='started'))continue
+   if(prior){
+    if(prior.phase!==attempt.phase||!['started','observing'].includes(prior.state))continue
+    if(attempt.state==='started')continue
+    if(prior.state==='observing'&&attempt.state==='observing'&&(attempt.sequence??0)<=(prior.sequence??0))continue
+   }
    observed.set(attempt.run,attempt)
   }catch{}
  }
  return [...observed.values()].sort((a,b)=>Date.parse(b.at)-Date.parse(a.at)).slice(0,5)
 }
 export const WORKER_LABELS:Record<Worker['status'],string>={pending:'Inicio pendiente',running:'En ejecución al observar',interrupted:'Interrumpido',completed:'Completado',error:'Error',closed:'Cerrado',unknown:'Sin estado'}
-export const ATTEMPT_LABELS:Record<Attempt['state'],string>={started:'Inicio registrado',completed:'Turno finalizado',quota:'Interrumpido por cuota',interrupted:'Interrumpido'}
+export const ATTEMPT_LABELS:Record<Attempt['state'],string>={started:'Inicio registrado',observing:'Observación durante el turno',completed:'Turno finalizado',quota:'Interrumpido por cuota',interrupted:'Interrumpido'}
