@@ -5,6 +5,6 @@ import LiveWorkspace from './live'
 
 export default async function FactoryPage({searchParams}:{searchParams:Promise<{project?:string;job?:string;result?:string;view?:string}>}) {
   await connection()
-  await requireCentralAdmin()
-  return <LiveWorkspace params={await searchParams}/>
+  const admin=await requireCentralAdmin()
+  return <LiveWorkspace params={await searchParams} draftKey={admin.userId}/>
 }
