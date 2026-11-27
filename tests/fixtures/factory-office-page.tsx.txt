@@ -7,6 +7,6 @@ export const metadata={icons:{icon:'/logo.png'}}
 export default async function Fixture({searchParams}:{searchParams:Promise<{mode?:string}>}){
  await connection()
  const {mode}=await searchParams
- const synthetic:Snapshot={mode:'live',connected:true,checkedAt:'2026-11-27T13:00:00Z',tasks:[{id:1,title:'CI synthetic telemetry',project:'Maracaná',stage:'paused',reason:'Cuota de Codex',at:'2026-11-27T13:00:00Z',attempts:[{run:'a'.repeat(32),phase:'development',state:'quota',at:'2026-11-27T13:00:00Z',workers:[{slot:1,role:'sno_qa',status:'completed'},{slot:2,role:null,status:'interrupted'}],messages:2,usage:{input_tokens:300,output_tokens:100},truncated:false}]}]}
+ const synthetic:Snapshot={mode:'live',connected:true,checkedAt:'2026-11-27T13:00:00Z',tasks:[{id:1,title:'CI synthetic telemetry',project:'Maracaná',stage:'paused',reason:'Cuota de Codex',quotaPause:true,at:'2026-11-27T13:00:00Z',attempts:[{run:'a'.repeat(32),phase:'development',state:'quota',at:'2026-11-27T13:00:00Z',workers:[{slot:1,role:'sno_qa',status:'completed'},{slot:2,role:null,status:'interrupted'}],messages:2,usage:{input_tokens:300,output_tokens:100},truncated:false}]}]}
  return <Office snapshot={mode==='telemetry'?synthetic:DEMO}/>
 }

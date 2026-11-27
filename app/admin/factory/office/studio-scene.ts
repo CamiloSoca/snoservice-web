@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js'
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js'
-import {ROLES} from './model'
+import {ROLES,type Treasury} from './model'
 
 export type VisualStatus='idle'|'working'|'observed'|'paused'|'requested'
 export type SeatStatus=Record<string,VisualStatus>
@@ -9,7 +9,7 @@ type Avatar={body:THREE.Group;left:THREE.Group;right:THREE.Group;lamp:THREE.Mesh
 type Seat={id:string;x:number;z:number;color:string;name:string}
 const seats:Seat[]=[...ROLES.slice(0,4).map((r,i)=>({...r,x:-7.2+i*4.8,z:-3.4})),...ROLES.slice(4).map((r,i)=>({...r,x:-7.2+i*4.8,z:1.35})),{id:'orchestrator',x:-6.9,z:5.8,color:'#45db89',name:'Coordinación'}]
 const C={floor:'#727976',wall:'#323a38',wallDark:'#252d2b',base:'#171d1c',edge:'#454e4a',desk:'#a68b70',metal:'#252c2b',screen:'#182621',green:'#2ad56f',rug:'#45534e',wood:'#84674e'}
-export function createStudio(canvas:HTMLCanvasElement,labels:HTMLElement,initial:SeatStatus,onReady:()=>void,onError:()=>void){
+export function createStudio(canvas:HTMLCanvasElement,labels:HTMLElement,initial:SeatStatus,initialQuota:Treasury,onReady:()=>void,onError:()=>void){
  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'low-power'})
  renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.65))
  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true
@@ -135,6 +135,33 @@ export function createStudio(canvas:HTMLCanvasElement,labels:HTMLElement,initial
  box(scene,2.5,.72,5.72,.48,.045,.31,'#d7d6c8',.025)
  for(const x of [7.0,8.5]){box(scene,x,1.05,6.45,1.2,2.10,1.1,'#202927',.07);box(scene,x,1.05,7.04,1.01,1.91,.045,'#384540',.035);for(let i=0;i<8;i++){box(scene,x,.27+i*.22,7.075,.87,.12,.035,'#182520',.015);box(scene,x+.32,.27+i*.22,7.103,.065,.04,.012,C.green,.008,false,emissive(C.green,.7))}}
  for(const [x,z,s] of [[-9.55,-7.05,1.25],[9.45,-7.03,1.25],[-9.55,3.8,1],[.15,7.25,1.0],[9.45,3.9,.95]])plant(x,z,s)
+ // Dedicated quota desk, with tangible coin stacks rather than a dashboard widget.
+ const bank=new THREE.Group();bank.position.set(-1.6,0,5.75);scene.add(bank)
+ box(bank,0,.88,0,2.3,.16,1.65,'#9a8065',.085)
+ for(const x of [-.94,.94])for(const z of [-.62,.62])box(bank,x,.4,z,.12,.82,.12,C.metal,.03)
+ box(bank,0,.985,0,1.84,.055,1.24,'#34423b',.065)
+ const gold=new THREE.MeshStandardMaterial({color:'#e5b84f',metalness:.68,roughness:.29})
+ const rim=new THREE.MeshStandardMaterial({color:'#f4d18a',metalness:.63,roughness:.33})
+ const coinGeometry=new THREE.CylinderGeometry(.23,.23,.075,24)
+ const rimGeometry=new THREE.TorusGeometry(.173,.018,6,24)
+ const stacks:THREE.Group[]=[]
+ for(let i=0;i<20;i++){
+  const stack=i%5,level=Math.floor(i/5)
+  const coin=new THREE.Group();coin.position.set(-.55+(stack%3)*.55,1.055+level*.083,-.30+Math.floor(stack/3)*.62);bank.add(coin)
+  mesh(coin,coinGeometry,gold,0,0,0,false)
+  const engraving=mesh(coin,rimGeometry,rim,0,.039,0,false);engraving.rotation.x=-Math.PI/2
+  box(coin,0,.040,0,.075,.008,.16,'#d5a43b',.006,false,rim)
+  stacks.push(coin)
+ }
+ const vaultLight=emissive('#687971',.6)
+ box(bank,0,1.025,.78,.65,.055,.07,'#687971',.025,false,vaultLight)
+ const bankAnchor=new THREE.Vector3(-1.6,2.05,5.75)
+ function updateTreasury(q:Treasury){
+  stacks.forEach((c,i)=>{c.visible=i<q.coins})
+  const color=q.kind==='known'?(q.percent!==null&&q.percent<=15?'#e5b563':'#4cdb88'):q.kind==='blocked'?'#e0a461':'#7e8a85'
+  vaultLight.color.set(color);vaultLight.emissive.set(color)
+ }
+ updateTreasury(initialQuota)
  // Soft ground shadow outside the slab.
  const ground=new THREE.Mesh(new THREE.PlaneGeometry(150,150),new THREE.ShadowMaterial({opacity:.18}));ground.rotation.x=-Math.PI/2;ground.position.y=-1.10;ground.receiveShadow=true;scene.add(ground)
  let statuses=initial,frame=0,disposed=false,last=0,dirty=true,rendered=false
@@ -157,6 +184,7 @@ export function createStudio(canvas:HTMLCanvasElement,labels:HTMLElement,initial
    el.style.left=((pos.x*.5+.5)*w)+'px';el.style.top=((-pos.y*.5+.5)*h)+'px'
    el.style.visibility=(Math.abs(pos.x)<1&&Math.abs(pos.y)<1&&pos.z<1)?'visible':'hidden'
   }
+  const bankLabel=labels.querySelector<HTMLElement>('[data-treasury]');if(bankLabel){pos.copy(bankAnchor).project(camera);bankLabel.style.left=((pos.x*.5+.5)*w)+'px';bankLabel.style.top=((-pos.y*.5+.5)*h)+'px';bankLabel.style.visibility=(Math.abs(pos.x)<1&&Math.abs(pos.y)<1&&pos.z<1)?'visible':'hidden'}
  }
  function animate(ms:number){
   if(disposed)return;frame=requestAnimationFrame(animate)
@@ -170,14 +198,16 @@ export function createStudio(canvas:HTMLCanvasElement,labels:HTMLElement,initial
    const color=active?'#40ee83':state==='paused'?'#e0ab61':state==='observed'?'#6daeb0':state==='requested'?'#a0b9df':'#65736a'
    a.lamp.color.set(color);a.lamp.emissive.set(color);a.lamp.emissiveIntensity=active?1.6:.4
    a.screen.color.set(active?'#376d50':'#263e35');a.screen.emissive.set(active?'#2b7950':'#1a3127');a.screen.emissiveIntensity=active?.9:.27
-   a.left.rotation.x=active?-.35+(reduce?0:Math.sin(time*7+a.index)*.15):.18
-   a.right.rotation.x=active?-.35+(reduce?0:Math.cos(time*7+a.index)*.15):.18
-   a.body.rotation.y=0
+   a.left.rotation.x=active?-.50+(reduce?0:Math.sin(time*9+a.index)*.21):.18
+   a.right.rotation.x=active?-.50+(reduce?0:Math.cos(time*9+a.index)*.21):.18
+   a.body.rotation.y=active&&!reduce?Math.sin(time*1.7+a.index)*.045:0
+   a.body.rotation.x=active?-.045+(reduce?0:Math.sin(time*2.2+a.index)*.018):0
+   a.screen.emissiveIntensity=active?(reduce?.9:.85+Math.sin(time*2+a.index)*.12):.27
   }
   try{renderer.render(scene,camera);updateLabels();if(!rendered){rendered=true;onReady()}}catch{cancelAnimationFrame(frame);onError()}
  }
  function lost(e:Event){e.preventDefault();onError()}
  canvas.addEventListener('webglcontextlost',lost)
  frame=requestAnimationFrame(animate)
- return {setStatus(next:SeatStatus){statuses=next;dirty=true},reset(){controls.target.set(0,.1,0);camera.position.set(16,20,25);camera.zoom=canvas.clientWidth/canvas.clientHeight<.9?.94:1;camera.updateProjectionMatrix();controls.update();dirty=true},dispose(){disposed=true;cancelAnimationFrame(frame);observer.disconnect();controls.removeEventListener('change',markDirty);controls.dispose();canvas.removeEventListener('webglcontextlost',lost);const materials=new Set<THREE.Material>(),geometry=new Set<THREE.BufferGeometry>();scene.traverse(o=>{if(o instanceof THREE.Mesh){geometry.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m)}});for(const g of geometry)g.dispose();for(const m of materials){if('map' in m&&m.map instanceof THREE.Texture)m.map.dispose();m.dispose()}for(const m of mats.values())m.dispose();for(const g of geos.values())g.dispose();renderer.dispose()}}
+ return {setStatus(next:SeatStatus){statuses=next;dirty=true},setTreasury(next:Treasury){updateTreasury(next);dirty=true},reset(){controls.target.set(0,.1,0);camera.position.set(16,20,25);camera.zoom=canvas.clientWidth/canvas.clientHeight<.9?.94:1;camera.updateProjectionMatrix();controls.update();dirty=true},dispose(){disposed=true;cancelAnimationFrame(frame);observer.disconnect();controls.removeEventListener('change',markDirty);controls.dispose();canvas.removeEventListener('webglcontextlost',lost);const materials=new Set<THREE.Material>(),geometry=new Set<THREE.BufferGeometry>();scene.traverse(o=>{if(o instanceof THREE.Mesh){geometry.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m)}});for(const g of geometry)g.dispose();for(const m of materials){if('map' in m&&m.map instanceof THREE.Texture)m.map.dispose();m.dispose()}for(const m of mats.values())m.dispose();for(const g of geos.values())g.dispose();renderer.dispose()}}
 }
