@@ -44,8 +44,8 @@ export function withEvents(task:Task,raw:unknown):Task{
 export const DEMO:Snapshot={mode:'demo',connected:false,checkedAt:null,tasks:[{id:1,title:'Catálogo comercial (simulado)',project:'Maracaná',stage:'develop',at:null,reason:null},{id:2,title:'Revisión de seguridad (simulada)',project:'Finanzas',stage:'validate',at:null,reason:null}]}
 export function roleState(role:typeof ROLES[number],snapshot:Snapshot,task:Task|undefined){
  if(snapshot.mode==='demo')return role.stage===task?.stage?'demo-working':'demo-idle'
- // Queue events are job-level, NOT evidence of a running individual agent.
- return 'unverified'
+ // Historical evidence is not live presence. Never mark it as working.
+ return task?.attempts?.some(a=>a.workers.some(w=>w.role===role.id))?'observed':'unverified'
 }
 
 export const OFFICE_MARK='SNOSERVICE_FACTORY_OFFICE_V1\n'

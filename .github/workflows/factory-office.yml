@@ -5,6 +5,8 @@ on:
       - 'app/admin/factory/**'
       - 'tests/*.test.mjs'
       - 'scripts/hermes-office-bridge.mjs'
+      - 'scripts/check-office-visual.mjs'
+      - 'tests/fixtures/factory-office-page.tsx.txt'
       - '.github/workflows/factory-office.yml'
 permissions:
   contents: read
@@ -24,3 +26,35 @@ jobs:
         if: ${{ !cancelled() }}
       - run: npm run build
         if: ${{ !cancelled() }}
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    container: mcr.microsoft.com/playwright:v1.64.1-noble
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install isolated browser client and generate CI-only route
+        run: |
+          npm install --prefix /tmp/office-browser --no-package-lock --ignore-scripts --no-audit --no-fund playwright@1.64.1
+          mkdir -p app/factory-office-ci
+          cp tests/fixtures/factory-office-page.tsx.txt app/factory-office-ci/page.tsx
+      - name: Browser checks with synthetic data
+        run: |
+          npm run dev -- --hostname 127.0.0.1 --port 3019 > /tmp/office-next.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true; rm -rf app/factory-office-ci' EXIT
+          for i in $(seq 1 60); do
+            if curl --max-time 5 -fsS http://127.0.0.1:3019/factory-office-ci > /dev/null; then break; fi
+            sleep 2
+          done
+          PLAYWRIGHT_MODULE=/tmp/office-browser/node_modules/playwright/index.mjs node scripts/check-office-visual.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: factory-office-visual
+          path: office-screenshots/
+          if-no-files-found: warn
