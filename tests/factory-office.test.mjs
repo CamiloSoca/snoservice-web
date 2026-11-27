@@ -88,3 +88,15 @@ test('office animates only fresh evidence, not paused, queued or stale tasks',()
  assert.equal(state({...base,closed:true}).seats[role],'idle')
  assert.equal(state({...base,attempts:[]}).seats[role],'idle')
 })
+
+test('new requests return to the office and watching a queued task does not fake execution',()=>{
+ const form=source('app/admin/factory/task-form.tsx')
+ assert.match(form,/router\.push\('\/admin\/factory\?watch='/)
+ const request=issue({body:'SNOSERVICE_FACTORY_BUILD_V1\n'+JSON.stringify({project:'maracana',title:'Catálogo',description:m.requestForRole('Revisar catálogo','sno_qa'),priority:'Alta'})})
+ const queued=m.parseTask(request)
+ assert.equal(queued.preferredRole,'sno_qa')
+ const running={...queued,id:17,stage:'develop',at:'2026-11-27T13:00:30Z'}
+ const snapshot={mode:'live',connected:true,checkedAt:'2026-11-27T13:01:00Z',tasks:[running,queued]}
+ const watched=m.studioState(snapshot,16)
+ assert.equal(watched.task.id,16);assert.equal(watched.seats.sno_qa,'requested');assert.equal(watched.seats.orchestrator,'idle')
+})

@@ -7,11 +7,12 @@ import {readOffice} from './office/queue'
 import {DEMO} from './office/model'
 import './office/studio.css'
 
-export default async function FactoryPage({searchParams}:{searchParams:Promise<{project?:string;job?:string;result?:string;view?:string;agent?:string;mode?:string}>}){
+export default async function FactoryPage({searchParams}:{searchParams:Promise<{project?:string;job?:string;result?:string;view?:string;agent?:string;mode?:string;watch?:string}>}){
  await connection()
  const admin=await requireCentralAdmin()
  const params=await searchParams
  if(params.view==='new'||params.view==='tasks'||params.job||params.project||params.result)return <LiveWorkspace params={params} draftKey={admin.userId}/>
  const snapshot=params.mode==='demo'?DEMO:await readOffice()
- return <Studio snapshot={snapshot}/>
+ const watch=typeof params.watch==='string'&&/^\d{1,10}$/.test(params.watch)?Number(params.watch):undefined
+ return <Studio snapshot={snapshot} watch={watch}/>
 }

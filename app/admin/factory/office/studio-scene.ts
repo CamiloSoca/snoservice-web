@@ -3,7 +3,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js'
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js'
 import {ROLES} from './model'
 
-export type VisualStatus='idle'|'working'|'observed'|'paused'
+export type VisualStatus='idle'|'working'|'observed'|'paused'|'requested'
 export type SeatStatus=Record<string,VisualStatus>
 type Avatar={body:THREE.Group;left:THREE.Group;right:THREE.Group;lamp:THREE.MeshStandardMaterial;screen:THREE.MeshStandardMaterial;anchor:THREE.Vector3;id:string;index:number}
 type Seat={id:string;x:number;z:number;color:string;name:string}
@@ -161,7 +161,7 @@ export function createStudio(canvas:HTMLCanvasElement,labels:HTMLElement,initial
   last=ms;const time=ms*.001;controls.update()
   for(const a of avatars){
    const state=statuses[a.id]??'idle',active=state==='working'
-   const color=active?'#40ee83':state==='paused'?'#e0ab61':state==='observed'?'#6daeb0':'#65736a'
+   const color=active?'#40ee83':state==='paused'?'#e0ab61':state==='observed'?'#6daeb0':state==='requested'?'#a0b9df':'#65736a'
    a.lamp.color.set(color);a.lamp.emissive.set(color);a.lamp.emissiveIntensity=active?1.6:.4
    a.screen.color.set(active?'#376d50':'#263e35');a.screen.emissive.set(active?'#2b7950':'#1a3127');a.screen.emissiveIntensity=active?.9:.27
    a.left.rotation.x=active?-.35+(reduce?0:Math.sin(time*7+a.index)*.15):.18

@@ -1,5 +1,6 @@
 'use client'
 import {useEffect,useRef,useState,type FormEvent} from 'react'
+import {useRouter} from 'next/navigation'
 import {ArrowRight} from 'lucide-react'
 import {ROLES,knownRole,requestForRole} from './office/model'
 import ReferenceImages,{type RefImage} from './reference-images'
@@ -16,6 +17,7 @@ function isImage(x:unknown):x is RefImage{
  return typeof i.name==='string'&&i.name.length<=1024&&typeof i.data==='string'&&i.data.length<=266668&&/^[A-Za-z0-9+/]+={0,2}$/.test(i.data)&&typeof i.size==='number'&&Number.isInteger(i.size)&&i.size>0&&i.size<=200000
 }
 export default function TaskForm({project,ready,draftKey,preferredAgent='',createAction}:{project:string;ready:boolean;draftKey:string;preferredAgent?:string;createAction:(form:FormData)=>Promise<Result>}){
+ const router=useRouter()
  const [draft,setDraft]=useState<Draft>(()=>empty(project,preferredAgent))
  const draftRef=useRef(draft)
  const [loaded,setLoaded]=useState(false)
@@ -61,7 +63,7 @@ export default function TaskForm({project,ready,draftKey,preferredAgent='',creat
    const result=await createAction(form)
    if(!result.ok){setError(result.error);return}
    try{sessionStorage.removeItem(key)}catch{}
-   window.location.assign('/admin/factory?job='+result.id+'&result=created#detail')
+   router.push('/admin/factory?watch='+result.id)
   }catch{setError('No se pudo confirmar el envío. Revisá la cola antes de reintentar; conservamos el borrador.')}
   finally{lock.current=false;setBusy(false)}
  }
