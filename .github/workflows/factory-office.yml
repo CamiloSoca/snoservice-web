@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'app/admin/factory/**'
+      - 'package.json'
+      - 'package-lock.json'
       - 'tests/*.test.mjs'
       - 'scripts/hermes-office-bridge.mjs'
       - 'scripts/check-office-visual.mjs'

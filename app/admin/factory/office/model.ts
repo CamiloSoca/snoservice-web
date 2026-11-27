@@ -102,3 +102,33 @@ export function readAttempts(issue:number,comments:unknown[]):Attempt[]{
 }
 export const WORKER_LABELS:Record<Worker['status'],string>={pending:'Inicio pendiente',running:'En ejecución al observar',interrupted:'Interrumpido',completed:'Completado',error:'Error',closed:'Cerrado',unknown:'Sin estado'}
 export const ATTEMPT_LABELS:Record<Attempt['state'],string>={started:'Inicio registrado',observing:'Observación durante el turno',completed:'Turno finalizado',quota:'Interrumpido por cuota',interrupted:'Interrumpido'}
+
+type StudioStatus='idle'|'working'|'observed'|'paused'
+export function studioState(snapshot:Snapshot){
+ const now=Date.parse(snapshot.checkedAt??'')
+ const open=snapshot.tasks.filter(t=>!t.closed)
+ const fresh=(at:string|null|undefined,age:number)=>{const then=Date.parse(at??'');return Number.isFinite(now)&&Number.isFinite(then)&&now>=then&&now-then<=age}
+ const executing=(t:Task)=>['analyze','develop','validate'].includes(t.stage)&&fresh(t.at,5*60_000)
+ const task=open.find(executing)??open.find(t=>t.stage==='paused'&&t.reason!=='Revisión manual')??open.find(t=>t.stage==='queued')??open[0]
+ const seats:Record<string,StudioStatus>=Object.fromEntries([...ROLES.map(r=>r.id),'orchestrator'].map(id=>[id,'idle']))
+ let kind='idle',label='Sin tareas activas'
+ if(snapshot.mode==='demo'){
+  for(const r of ROLES)if(r.stage==='develop')seats[r.id]='working'
+  seats.orchestrator='working'
+  return {task:snapshot.tasks[0],seats,kind:'working',label:'Desarrollo simulado',open:snapshot.tasks.length}
+ }
+ if(!snapshot.connected)return {task:undefined,seats,kind:'unknown',label:'Cola no disponible',open:0}
+ if(!task)return {task,seats,kind,label,open:open.length}
+ const attempt=task.attempts?.[0]
+ for(const r of ROLES){
+  if(task.attempts?.some(a=>a.workers.some(w=>w.role===r.id)))seats[r.id]='observed'
+  if(attempt?.state==='observing'&&fresh(attempt.at,90_000)&&executing(task)&&attempt.workers.some(w=>w.role===r.id&&w.status==='running'))seats[r.id]='working'
+ }
+ if(task.stage==='paused'){kind='paused';label=task.reason==='Cuota de Codex'?'Pausada · cuota':task.reason==='Revisión manual'?'Revisión pendiente':'En pausa';seats.orchestrator='paused'}
+ else if(task.stage==='queued'){label='En cola'}
+ else if(task.stage==='blocked'){kind='paused';label='Bloqueada'}
+ else if(task.stage==='review'){label='Entrega en revisión'}
+ else if(executing(task)){kind='working';label=STAGES[task.stage];seats.orchestrator='working'}
+ else{kind='unknown';label='Último estado: '+STAGES[task.stage]}
+ return {task,seats,kind,label,open:open.length}
+}

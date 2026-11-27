@@ -25,7 +25,7 @@ test('demo work never becomes real agent telemetry',()=>{
  for(const role of m.ROLES)assert.equal(m.roleState(role,{...m.DEMO,mode:'live'},task),'unverified')
 })
 test('office data boundary checks admin and uses a fixed private GET-only queue',()=>{
- const queue=source('app/admin/factory/office/queue.ts'), page=source('app/admin/factory/office/page.tsx'), client=source('app/admin/factory/office/office.tsx')
+ const queue=source('app/admin/factory/office/queue.ts'), page=source('app/admin/factory/page.tsx'), client=source('app/admin/factory/office/studio.tsx')
  assert.match(queue,/import 'server-only'/);assert.match(queue,/await requireCentralAdmin\(\)/);assert.match(page,/await requireCentralAdmin\(\)/)
  assert.match(queue,/method:'GET'/);assert.match(queue,/repo.private!==true/);assert.match(queue,/redirect:'error'/);assert.doesNotMatch(queue,/method:'(?:POST|PATCH|DELETE)'/)
  assert.doesNotMatch(client,/FACTORY_QUEUE_TOKEN|api.github.com|process.env|dangerouslySetInnerHTML/)
@@ -62,4 +62,29 @@ test('intermediate observations never overwrite a terminal turn even if publishe
  const late=comment({state:'observing',sequence:3},'2026-11-27T13:02:00Z',5)
  assert.equal(m.readAttempts(16,[late,c,b,a])[0].state,'completed')
  assert.deepEqual(m.readAttempts(16,[comment({state:'observing',sequence:13},'2026-11-27T13:00:30Z',1)]),[])
+})
+
+test('3D office is the default Factory route; old URL is legacy only',()=>{
+ const page=source('app/admin/factory/page.tsx')
+ assert.match(page,/<Studio snapshot=\{snapshot\}/)
+ assert.match(page,/await requireCentralAdmin\(\)/)
+ assert.doesNotMatch(page,/redirect\(/)
+ const client=source('app/admin/factory/office/studio.tsx')
+ assert.doesNotMatch(client,/\/admin\/factory\/office/)
+ assert.match(client,/\/admin\/factory\?view=new/)
+ const scene=source('app/admin/factory/office/studio-scene.ts')
+ assert.match(scene,/new THREE.WebGLRenderer/)
+ assert.match(scene,/new THREE.OrthographicCamera/)
+})
+test('office animates only fresh evidence, not paused, queued or stale tasks',()=>{
+ const role='sno_qa',now='2026-11-27T13:01:00Z'
+ const base={id:16,title:'Synthetic',project:'Maracaná',stage:'develop',at:'2026-11-27T13:00:30Z',reason:null,attempts:[{run:'a'.repeat(32),phase:'development',state:'observing',at:'2026-11-27T13:00:30Z',workers:[{slot:1,role,status:'running'}],messages:0,usage:null,truncated:false}]}
+ const state=(task,checkedAt=now)=>m.studioState({mode:'live',connected:true,checkedAt,tasks:[task]})
+ assert.equal(state(base).seats[role],'working')
+ assert.equal(state({...base,stage:'paused',reason:'Cuota de Codex'}).seats[role],'observed')
+ assert.equal(state({...base,stage:'paused',reason:'Cuota de Codex'}).seats.orchestrator,'paused')
+ assert.equal(state({...base,stage:'queued'}).seats.orchestrator,'idle')
+ assert.equal(state(base,'2026-11-27T14:00:00Z').seats[role],'observed')
+ assert.equal(state({...base,closed:true}).seats[role],'idle')
+ assert.equal(state({...base,attempts:[]}).seats[role],'idle')
 })
