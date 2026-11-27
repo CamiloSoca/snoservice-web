@@ -7,7 +7,10 @@ const get = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 test('The central dashboard is fail-closed and requires the MFA-admin guard', () => {
   const source = get('app/admin/page.tsx')
   assert.match(source, /await requireCentralAdmin\(\)/)
-  assert.match(source, /Sin datos conectados|No existen credenciales compartidas/)
+  // The empty-state copy moved to the client view; the server guard remains mandatory.
+  const dashboard = get('app/admin/dashboard-client.tsx')
+  assert.match(dashboard, /Sin datos conectados|No existen credenciales compartidas/)
+  assert.doesNotMatch(dashboard, /service_role|DATABASE_URL|secret_token/)
   assert.doesNotMatch(source, /service_role|DATABASE_URL|secret_token/)
 })
 
