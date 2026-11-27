@@ -2,6 +2,7 @@ import Office from '../admin/factory/office/studio'
 import {DEMO,type Snapshot} from '../admin/factory/office/model'
 import '../admin/factory/office/studio.css'
 import {connection} from 'next/server'
+export const instant=false
 export const metadata={icons:{icon:'/logo.png'}}
 export default async function Fixture({searchParams}:{searchParams:Promise<{mode?:string}>}){
  await connection()
