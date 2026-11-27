@@ -15,9 +15,9 @@ export async function readOffice():Promise<Snapshot>{
  try{
   const repo=await get('')
   if(repo.private!==true||repo.has_issues!==true||String(repo.full_name).toLowerCase()!==QUEUE.toLowerCase())throw Error('invalid queue')
-  const raw=await get('/issues?state=open&per_page=100&sort=updated&direction=desc')
+  const raw=await get('/issues?state=all&per_page=100&sort=updated&direction=desc')
   if(!Array.isArray(raw))throw Error('invalid queue')
-  const tasks=raw.map(parseTask).filter((t):t is Task=>t!==null).slice(0,8)
+  const tasks=raw.map(x=>parseTask(x,true)).filter((t):t is Task=>t!==null).sort((a,b)=>Number(a.closed)-Number(b.closed)).slice(0,8)
   const items=await Promise.all(tasks.map(async t=>{try{return withEvents(t,await get('/issues/'+t.id+'/comments?per_page=100&sort=created&direction=desc'))}catch{return {...t,stage:'unknown' as const}}}))
   return {mode:'live',connected:true,checkedAt,tasks:items}
  }catch{return {mode:'live',connected:false,checkedAt,tasks:[]}}

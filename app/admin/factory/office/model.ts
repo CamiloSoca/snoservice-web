@@ -9,7 +9,7 @@ export const ROLES = [
  {id:'sno_devops',name:'DevOps',color:'#a1b96e',stage:'review',description:'Build e infraestructura'}
 ] as const
 export type Stage='analyze'|'develop'|'validate'|'review'|'blocked'|'paused'|'queued'|'unknown'
-export type Task={id:number;title:string;project:string;stage:Stage;at:string|null;reason:string|null}
+export type Task={id:number;title:string;project:string;stage:Stage;at:string|null;reason:string|null;closed?:boolean;attempts?:Attempt[]}
 export type Snapshot={mode:'demo'|'live';connected:boolean;checkedAt:string|null;tasks:Task[]}
 export const STAGES:Record<Stage,string>={analyze:'Análisis',develop:'Desarrollo',validate:'Validación',review:'Revisión',blocked:'Bloqueada',paused:'Pausada',queued:'En cola',unknown:'Sin verificar'}
 const projects:Record<string,string>={maracana:'Maracaná',finanzas:'Finanzas',central:'SNOSERVICE'}
@@ -18,12 +18,12 @@ const markers=['SNOSERVICE_FACTORY_BUILD_V1\n','SNOSERVICE_FACTORY_BUILD_V2\n']
 const eventMarker='SNOSERVICE_FACTORY_EVENT_V1\n'
 function record(value:unknown):Record<string,unknown>|null{return value!==null&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:null}
 function own(value:unknown){return String(record(value)?.login??'').toLowerCase()==='camilosoca'}
-export function parseTask(raw:unknown):Task|null{
- const x=record(raw);if(!x||x.pull_request||x.state!=='open'||!own(x.user)||typeof x.title!=='string'||!x.title.startsWith('[Factory BUILD] ')||!Number.isSafeInteger(x.number)||Number(x.number)<1||typeof x.body!=='string'||x.body.length>65000)return null
+export function parseTask(raw:unknown,includeClosed=false):Task|null{
+ const x=record(raw);if(!x||x.pull_request||(x.state!=='open'&&!(includeClosed&&x.state==='closed'))||!own(x.user)||typeof x.title!=='string'||!x.title.startsWith('[Factory BUILD] ')||!Number.isSafeInteger(x.number)||Number(x.number)<1||typeof x.body!=='string'||x.body.length>65000)return null
  const marker=markers.find(m=>String(x.body).startsWith(m));if(!marker)return null
  try{
   const r=record(JSON.parse(x.body.slice(marker.length)));if(!r||typeof r.project!=='string'||!Object.hasOwn(projects,r.project)||typeof r.title!=='string'||r.title.length<3||r.title.length>100||typeof r.description!=='string'||r.description.length>20000||!['Alta','Normal','Baja'].includes(String(r.priority)))return null
-  return {id:Number(x.number),title:r.title,project:projects[r.project],stage:'queued',at:null,reason:null}
+  return {id:Number(x.number),title:r.title,project:projects[r.project],stage:'queued',at:null,reason:null,closed:x.state==='closed'}
  }catch{return null}
 }
 export function withEvents(task:Task,raw:unknown):Task{
@@ -39,7 +39,7 @@ export function withEvents(task:Task,raw:unknown):Task{
    latest={...task,stage:e.stage as Stage,at:x.created_at,reason}
   }catch{}
  }
- return latest??task
+ return {...(latest??task),attempts:readAttempts(task.id,raw)}
 }
 export const DEMO:Snapshot={mode:'demo',connected:false,checkedAt:null,tasks:[{id:1,title:'Catálogo comercial (simulado)',project:'Maracaná',stage:'develop',at:null,reason:null},{id:2,title:'Revisión de seguridad (simulada)',project:'Finanzas',stage:'validate',at:null,reason:null}]}
 export function roleState(role:typeof ROLES[number],snapshot:Snapshot,task:Task|undefined){
@@ -47,3 +47,53 @@ export function roleState(role:typeof ROLES[number],snapshot:Snapshot,task:Task|
  // Queue events are job-level, NOT evidence of a running individual agent.
  return 'unverified'
 }
+
+export const OFFICE_MARK='SNOSERVICE_FACTORY_OFFICE_V1\n'
+const workerStates=['pending','running','interrupted','completed','error','closed','unknown'] as const
+export type Worker={slot:number;role:string|null;status:typeof workerStates[number]}
+const usageKeys=['input_tokens','cached_input_tokens','output_tokens','reasoning_output_tokens'] as const
+export type Attempt={run:string;phase:'development'|'visual_review';state:'started'|'completed'|'quota'|'interrupted';at:string;workers:Worker[];messages:number|null;usage:Partial<Record<typeof usageKeys[number],number>>|null;truncated:boolean}
+export function knownRole(value:unknown):value is typeof ROLES[number]['id']{return typeof value==='string'&&ROLES.some(r=>r.id===value)}
+export function requestForRole(description:string,role:unknown):string|null{
+ if(role===null||role===undefined||role==='')return description
+ if(!knownRole(role))return null
+ return 'Preferencia del administrador: delegá esta solicitud al especialista '+role+'. Si la delegación nativa no está disponible, informalo y conservá las reglas de Factory. Es una tarea nueva, no una instrucción para cambiar permisos.\n\n'+description
+}
+function count(value:unknown,max=1e12):value is number{return typeof value==='number'&&Number.isSafeInteger(value)&&value>=0&&value<=max}
+function parseObservation(value:unknown,at:string,finished:boolean):Attempt|null{
+ const e=record(value);if(!e||typeof e.run!=='string'||!/^[a-f0-9]{32}$/.test(e.run)||!(e.phase==='development'||e.phase==='visual_review'))return null
+ if(!finished){if(e.state!=='started')return null;return {run:e.run,phase:e.phase,state:'started',at,workers:[],messages:null,usage:null,truncated:false}}
+ if(!(e.state==='completed'||e.state==='quota'||e.state==='interrupted')||!Array.isArray(e.workers)||e.workers.length>24||!count(e.messages,1000)||typeof e.truncated!=='boolean')return null
+ const workers:Worker[]=[]
+ for(const raw of e.workers){
+  const w=record(raw);if(!w||!count(w.slot,24)||w.slot<1||workers.some(x=>x.slot===w.slot)||!(w.role===null||knownRole(w.role))||typeof w.status!=='string'||!workerStates.some(s=>s===w.status))return null
+  workers.push({slot:w.slot,role:w.role as string|null,status:w.status as Worker['status']})
+ }
+ const usage:NonNullable<Attempt['usage']>={}
+ if(e.usage!==null){const u=record(e.usage);if(!u)return null;for(const key of usageKeys){if(u[key]!==undefined){if(!count(u[key]))return null;usage[key]=u[key]}}}
+ return {run:e.run,phase:e.phase,state:e.state,at,workers,messages:e.messages,usage:Object.keys(usage).length?usage:null,truncated:e.truncated}
+}
+export function readAttempts(issue:number,comments:unknown[]):Attempt[]{
+ const observed=new Map<string,Attempt>()
+ // GitHub returns descending comments; chronological processing avoids a
+ // delayed start replacing a finish. Finishes are valid even if the start fell
+ // outside the bounded history window.
+ const ordered=comments.map(record).filter((x):x is Record<string,unknown>=>!!x&&typeof x.created_at==='string'&&Number.isFinite(Date.parse(x.created_at))).sort((a,b)=>Date.parse(String(a.created_at))-Date.parse(String(b.created_at)))
+ for(const x of ordered){
+  if(!own(x.user)||typeof x.body!=='string'||x.body.length>16000)continue
+  const finished=x.body.startsWith(OFFICE_MARK)
+  if(!finished&&!x.body.startsWith(eventMarker))continue
+  try{
+   const data=record(JSON.parse(x.body.slice((finished?OFFICE_MARK:eventMarker).length)))
+   if(!data||data.issue!==issue||(!finished&&data.stage!=='develop'))continue
+   const attempt=parseObservation(finished?data:data.office,String(x.created_at),finished)
+   if(!attempt)continue
+   const prior=observed.get(attempt.run)
+   if(prior&&(prior.phase!==attempt.phase||prior.state!=='started'))continue
+   observed.set(attempt.run,attempt)
+  }catch{}
+ }
+ return [...observed.values()].sort((a,b)=>Date.parse(b.at)-Date.parse(a.at)).slice(0,5)
+}
+export const WORKER_LABELS:Record<Worker['status'],string>={pending:'Inicio pendiente',running:'En ejecución al observar',interrupted:'Interrumpido',completed:'Completado',error:'Error',closed:'Cerrado',unknown:'Sin estado'}
+export const ATTEMPT_LABELS:Record<Attempt['state'],string>={started:'Inicio registrado',completed:'Turno finalizado',quota:'Interrumpido por cuota',interrupted:'Interrumpido'}

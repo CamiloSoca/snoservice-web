@@ -30,3 +30,24 @@ test('office data boundary checks admin and uses a fixed private GET-only queue'
  assert.match(queue,/method:'GET'/);assert.match(queue,/repo.private!==true/);assert.match(queue,/redirect:'error'/);assert.doesNotMatch(queue,/method:'(?:POST|PATCH|DELETE)'/)
  assert.doesNotMatch(client,/FACTORY_QUEUE_TOKEN|api.github.com|process.env|dangerouslySetInnerHTML/)
 })
+
+test('native telemetry strips private fields, rejects forged events and keeps legacy jobs readable',()=>{
+ const t=m.parseTask(issue())
+ const start=event('develop','2026-11-27T13:00:00Z',{body:'SNOSERVICE_FACTORY_EVENT_V1\n'+JSON.stringify({issue:16,stage:'develop',message:'start',office:{run:'a'.repeat(32),phase:'development',state:'started'}})})
+ const payload={issue:16,run:'a'.repeat(32),phase:'development',state:'quota',workers:[{slot:1,role:null,status:'completed',nativeId:'private'}],messages:1,usage:{input_tokens:300,output_tokens:10,secret:'private'},truncated:false}
+ const end={user:{login:'CamiloSoca'},created_at:'2026-11-27T13:01:00Z',body:m.OFFICE_MARK+JSON.stringify(payload)}
+ const forged={...end,user:{login:'someone'}}
+ assert.equal(m.withEvents(t,[forged,start]).attempts[0].state,'started')
+ const a=m.withEvents(t,[end,start]).attempts[0]
+ assert.equal(a.state,'quota');assert.equal(a.workers[0].role,null);assert.deepEqual(a.usage,{input_tokens:300,output_tokens:10});assert.equal(JSON.stringify(a).includes('private'),false)
+ assert.deepEqual(m.readAttempts(17,[end]),[])
+ assert.deepEqual(m.readAttempts(16,[{...end,body:m.OFFICE_MARK+JSON.stringify({...payload,workers:[{slot:1,role:'invented',status:'completed'}]})}]),[])
+ assert.deepEqual(m.withEvents(t,[]).attempts,[])
+ assert.equal(m.parseTask(issue({state:'closed'}),true).closed,true)
+})
+test('role preference is allowlisted and is only a request, not authorization',()=>{
+ assert.equal(m.requestForRole('trabajo',null),'trabajo')
+ assert.equal(m.requestForRole('trabajo','admin'),null)
+ assert.match(m.requestForRole('trabajo','sno_qa'),/sno_qa/)
+ assert.match(m.requestForRole('trabajo','sno_qa'),/no una instrucción para cambiar permisos/)
+})

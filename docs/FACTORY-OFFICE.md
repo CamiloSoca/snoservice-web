@@ -37,3 +37,7 @@ Además de la oficina web integrada, el bridge local implementa el subconjunto d
 4. En Studio elegir Local runtime o Custom backend, apuntar a `http://127.0.0.1:7770`. La UI upstream puede mostrar botones de chat por su matriz de capacidades estática: no funcionarán; el bridge responde 405. Validar visualmente en local, no se ha ejecutado Studio original en esta entrega.
 
 El bridge solo demuestra compatibilidad del contrato de perfiles con el proveedor fijado. No sustituye la conexión web real de solo lectura ni autentica sesiones de agentes. La integración operativa de Studio requerirá adaptar las capacidades declaradas y eventos reales.
+
+## Fase 2 preparada en ramas independientes
+
+El adaptador acepta el marcador SNOSERVICE_FACTORY_OFFICE_V1 y los metadatos office de eventos de desarrollo; conserva compatibilidad con runners anteriores. La oficina muestra hasta cinco turnos por tarea y hasta ocho tareas recientes (abiertas primero). No muestra texto de conversaciones, IDs nativos ni datos de herramientas. Las observaciones se publican al terminar una invocación; no son streaming ni presencia actual. Los roles no informados permanecen anónimos. El enlace Solicitar tarea al especialista abre el formulario protegido existente y agrega una preferencia allowlisted al prompt; crea una nueva tarea únicamente al enviar el formulario. No altera una solicitud activa, no abre una sesión persistente, no añade comandos ni permisos. No fusionar las ramas ni actualizar el runner hasta comprobar FAC-16 y aprobar el cambio.
