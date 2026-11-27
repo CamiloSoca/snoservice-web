@@ -1,0 +1,23 @@
+name: Factory office checks
+on:
+  pull_request:
+    paths:
+      - 'app/admin/factory/**'
+      - 'tests/factory-office.test.mjs'
+      - '.github/workflows/factory-office.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/*.test.mjs
+      - run: npx tsc --noEmit
+      - run: npm run build
