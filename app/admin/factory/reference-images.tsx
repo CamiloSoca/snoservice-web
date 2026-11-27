@@ -6,11 +6,19 @@ const MAX=3, LIMIT=200000
 type RefImage={name:string;data:string;size:number}
 async function compress(file:File):Promise<RefImage>{
  if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>15_000_000)throw Error('Usá PNG, JPG o WebP de hasta 15 MB.')
- const url=URL.createObjectURL(file)
- try{
-  const image=new Image()
-  image.src=url
-  await image.decode()
+ // The admin CSP permits data: images but intentionally disallows blob:.
+ // FileReader stays local; the original file is never sent to the server.
+ const url=await new Promise<string>((resolve,reject)=>{
+  const reader=new FileReader()
+  reader.onload=()=>typeof reader.result==='string'?resolve(reader.result):reject(Error('No se pudo leer la imagen.'))
+  reader.onerror=()=>reject(Error('No se pudo leer el archivo.'))
+  reader.onabort=()=>reject(Error('Lectura de imagen cancelada.'))
+  reader.readAsDataURL(file)
+ })
+ const image=new Image()
+ image.src=url
+ try{await image.decode()}catch{throw Error('No se pudo abrir la imagen. Verificá que sea un PNG, JPG o WebP válido.')}
+ {
   if(!image.naturalWidth||!image.naturalHeight||image.naturalWidth*image.naturalHeight>40_000_000)throw Error('La imagen tiene dimensiones demasiado grandes.')
   const canvas=document.createElement('canvas')
   const ctx=canvas.getContext('2d')
@@ -29,7 +37,7 @@ async function compress(file:File):Promise<RefImage>{
    }
   }
   throw Error('No se pudo comprimir la imagen al tamaño permitido.')
- }finally{URL.revokeObjectURL(url)}
+ }
 }
 export default function ReferenceImages(){
  const input=useRef<HTMLInputElement>(null)
