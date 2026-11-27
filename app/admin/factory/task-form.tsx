@@ -1,21 +1,22 @@
 'use client'
 import {useEffect,useRef,useState,type FormEvent} from 'react'
 import {ArrowRight} from 'lucide-react'
+import {ROLES,knownRole,requestForRole} from './office/model'
 import ReferenceImages,{type RefImage} from './reference-images'
 
 export const PROMPT_LIMIT=20000
-type Draft={project:string;title:string;description:string;priority:string;images:RefImage[]}
+type Draft={project:string;title:string;description:string;priority:string;preferredAgent:string;images:RefImage[]}
 type Result={ok:true;id:number}|{ok:false;error:string}
 const projectOptions=[['finanzas','Finanzas'],['maracana','Maracaná'],['central','SNOSERVICE']]
 const priorities=['Alta','Normal','Baja']
-function empty(project:string):Draft{return {project:projectOptions.some(([id])=>id===project)?project:'finanzas',title:'',description:'',priority:'Normal',images:[]}}
+function empty(project:string,preferredAgent=''):Draft{return {project:projectOptions.some(([id])=>id===project)?project:'finanzas',title:'',description:'',priority:'Normal',preferredAgent,images:[]}}
 function isImage(x:unknown):x is RefImage{
  if(!x||typeof x!=='object')return false
  const i=x as RefImage
  return typeof i.name==='string'&&i.name.length<=1024&&typeof i.data==='string'&&i.data.length<=266668&&/^[A-Za-z0-9+/]+={0,2}$/.test(i.data)&&typeof i.size==='number'&&Number.isInteger(i.size)&&i.size>0&&i.size<=200000
 }
-export default function TaskForm({project,ready,draftKey,createAction}:{project:string;ready:boolean;draftKey:string;createAction:(form:FormData)=>Promise<Result>}){
- const [draft,setDraft]=useState<Draft>(()=>empty(project))
+export default function TaskForm({project,ready,draftKey,preferredAgent='',createAction}:{project:string;ready:boolean;draftKey:string;preferredAgent?:string;createAction:(form:FormData)=>Promise<Result>}){
+ const [draft,setDraft]=useState<Draft>(()=>empty(project,preferredAgent))
  const draftRef=useRef(draft)
  const [loaded,setLoaded]=useState(false)
  const [error,setError]=useState('')
@@ -32,24 +33,25 @@ export default function TaskForm({project,ready,draftKey,createAction}:{project:
     const next:Draft={project:typeof d.project==='string'&&projectOptions.some(([id])=>id===d.project)?d.project:empty(project).project,
      title:typeof d.title==='string'?d.title:'',description:typeof d.description==='string'?d.description:'',
      priority:typeof d.priority==='string'&&priorities.includes(d.priority)?d.priority:'Normal',
+     preferredAgent:knownRole(preferredAgent)?preferredAgent:knownRole(d.preferredAgent)?d.preferredAgent:'',
      images:Array.isArray(d.images)?d.images.filter(isImage).slice(0,3):[]}
     draftRef.current=next;setDraft(next)
    }
   }catch{setStorageError(true)}
   setLoaded(true)
- },[key,project])
+ },[key,project,preferredAgent])
  function update(patch:Partial<Draft>){
   const next={...draftRef.current,...patch};draftRef.current=next;setDraft(next)
   try{sessionStorage.setItem(key,JSON.stringify(next));setStorageError(false)}catch{setStorageError(true)}
  }
  function discard(){
   if(!window.confirm('¿Descartar el borrador y sus imágenes?'))return
-  const next=empty(project);draftRef.current=next;setDraft(next);setError('')
+  const next=empty(project,preferredAgent);draftRef.current=next;setDraft(next);setError('')
   try{sessionStorage.removeItem(key);setStorageError(false)}catch{setStorageError(true)}
  }
  async function submit(event:FormEvent<HTMLFormElement>){
   event.preventDefault()
-  if(lock.current||imageBusy||!loaded)return
+  if(lock.current||imageBusy||!loaded||over)return
   if(draft.description.trim().length<10||draft.description.length>PROMPT_LIMIT||draft.title.trim().length<3||draft.title.length>100){
    setError('Revisá el título y la longitud de la descripción. El borrador sigue disponible.');return
   }
@@ -63,13 +65,16 @@ export default function TaskForm({project,ready,draftKey,createAction}:{project:
   }catch{setError('No se pudo confirmar el envío. Revisá la cola antes de reintentar; conservamos el borrador.')}
   finally{lock.current=false;setBusy(false)}
  }
- const over=draft.description.length>PROMPT_LIMIT
+ const composed=requestForRole(draft.description,draft.preferredAgent)
+ const length=composed?.length??PROMPT_LIMIT+1
+ const over=length>PROMPT_LIMIT
  return <form onSubmit={submit} className="f2-modal" style={{width:'100%',maxWidth:850,boxShadow:'none'}}>
   <fieldset disabled={!loaded||busy} style={{border:0,padding:0,margin:0,minWidth:0,display:'grid',gap:14}}>
    <label>Proyecto<select name="project" value={draft.project} onChange={e=>update({project:e.target.value})}>{projectOptions.map(([id,name])=><option key={id} value={id}>{name}</option>)}<option disabled value="cut">13 CUT · protegido</option></select></label>
+   <label>Especialista preferido<select name="preferredAgent" value={draft.preferredAgent} onChange={e=>update({preferredAgent:e.target.value})}><option value="">Automático · orquestador</option>{ROLES.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select><small>Preferencia de delegación para una tarea nueva; no garantiza una sesión individual.</small></label>
    <label>Título<input name="title" required minLength={3} maxLength={100} value={draft.title} onChange={e=>update({title:e.target.value})}/></label>
    <label>Descripción<textarea name="description" required minLength={10} rows={12} style={{minHeight:260,resize:'vertical'}} aria-invalid={over} value={draft.description} onChange={e=>update({description:e.target.value})} placeholder="Qué cambiar y cómo verificar el resultado…"/>
-    <span style={{textAlign:'right',fontSize:12,color:over?'#ff9b9b':undefined}}>{draft.description.length.toLocaleString('es-UY')} / {PROMPT_LIMIT.toLocaleString('es-UY')} caracteres{over?' · Supera el límite. No se recortó el texto.':''}</span>
+    <span style={{textAlign:'right',fontSize:12,color:over?'#ff9b9b':undefined}}>{length.toLocaleString('es-UY')} / {PROMPT_LIMIT.toLocaleString('es-UY')} caracteres{over?' · Supera el límite. No se recortó el texto.':''}</span>
    </label>
    <ReferenceImages images={draft.images} onChange={images=>update({images})} onBusy={setImageBusy} disabled={busy||!loaded}/>
    <label>Prioridad<select name="priority" value={draft.priority} onChange={e=>update({priority:e.target.value})}>{priorities.map(p=><option key={p}>{p}</option>)}</select></label>
