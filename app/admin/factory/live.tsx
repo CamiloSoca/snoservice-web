@@ -108,7 +108,7 @@ async function publishDelivery(issue:number,expectedHead:string,action:'status'|
    }catch{}
   }
   const prefix='https://github.com/CamiloSoca/'+job.project.repo+'/pull/'
-  if(delivery?.stage!=='review'||delivery.commit!==expectedHead||typeof delivery.pr!=='string'||!delivery.pr.startsWith(prefix)||!/^\\d+$/.test(delivery.pr.slice(prefix.length)))return {state:'blocked',message:'La entrega registrada cambió o no es válida.'}
+  if(delivery?.stage!=='review'||delivery.commit!==expectedHead||typeof delivery.pr!=='string'||!delivery.pr.startsWith(prefix)||!/^[0-9]+$/.test(delivery.pr.slice(prefix.length)))return {state:'blocked',message:'La entrega registrada cambió o no es válida.'}
   const pr=Number(delivery.pr.slice(prefix.length))
   return await release({issue,project:job.project.id,pr,head:expectedHead},action)
  }catch{return {state:'blocked',message:'No se pudo verificar la entrega privada. Revisá la cola y el estado de la PR.'}}
