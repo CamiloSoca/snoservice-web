@@ -2,22 +2,23 @@
 import {useEffect,useRef,useState} from 'react'
 import {useRouter} from 'next/navigation'
 import {ArrowLeft,Plus,List,RotateCcw,RefreshCw,Maximize2,X,ChevronDown,Monitor} from 'lucide-react'
-import {ROLES,studioState,type Snapshot} from './model'
+import {ROLES,studioState,treasuryState,type Snapshot} from './model'
 import type {SeatStatus} from './studio-scene'
 const team=[...ROLES,{id:'orchestrator',name:'Coordinación',color:'#2ad56f',description:'Orquestador'}]
 export default function Studio({snapshot,watch}:{snapshot:Snapshot;watch?:number}){
  const router=useRouter(),canvas=useRef<HTMLCanvasElement>(null),labels=useRef<HTMLDivElement>(null),viewport=useRef<HTMLElement>(null)
  const scene=useRef<ReturnType<typeof import('./studio-scene').createStudio>|null>(null)
- const [ready,setReady]=useState(false),[failed,setFailed]=useState(false),[picked,setPicked]=useState<string|null>(null),[expanded,setExpanded]=useState(false)
+ const [ready,setReady]=useState(false),[failed,setFailed]=useState(false),[picked,setPicked]=useState<string|null>(null),[expanded,setExpanded]=useState(false),[quotaOpen,setQuotaOpen]=useState(false)
  const view=studioState(snapshot,watch),status=view.seats as SeatStatus
- const current=useRef(status);current.current=status
+ const quota=treasuryState(snapshot)
+ const current=useRef({status,quota});current.current={status,quota}
  const selected=team.find(r=>r.id===picked)
  useEffect(()=>{
   let cancelled=false
-  if(canvas.current&&labels.current)void import('./studio-scene').then(({createStudio})=>{if(cancelled||!canvas.current||!labels.current)return;try{scene.current=createStudio(canvas.current,labels.current,current.current,()=>setReady(true),()=>setFailed(true))}catch{setFailed(true)}}).catch(()=>{if(!cancelled)setFailed(true)})
+  if(canvas.current&&labels.current)void import('./studio-scene').then(({createStudio})=>{if(cancelled||!canvas.current||!labels.current)return;try{scene.current=createStudio(canvas.current,labels.current,current.current.status,current.current.quota,()=>setReady(true),()=>setFailed(true))}catch{setFailed(true)}}).catch(()=>{if(!cancelled)setFailed(true)})
   return()=>{cancelled=true;scene.current?.dispose();scene.current=null}
  },[])
- useEffect(()=>{scene.current?.setStatus(status)},[status])
+ useEffect(()=>{scene.current?.setStatus(status);scene.current?.setTreasury(quota)},[status,quota])
  useEffect(()=>{if(snapshot.mode==='demo')return;const id=window.setInterval(()=>{if(document.visibilityState==='visible')router.refresh()},30000);return()=>window.clearInterval(id)},[router,snapshot.mode])
  const task=view.task
  return <main className={'studio-shell'+(expanded?' studio-expanded':'')}>
@@ -30,14 +31,15 @@ export default function Studio({snapshot,watch}:{snapshot:Snapshot;watch?:number
    <div className="studio-top"><div><div className="studio-kicker">WORKSPACE / 01</div><h1>Factory<span>.</span></h1></div><div className="studio-pill"><i className={snapshot.mode==='demo'?'demo':snapshot.connected?'online':'offline'}/>{snapshot.mode==='demo'?'Demo':snapshot.connected?'Cola conectada':'Sin conexión'}</div></div>
    <div className="studio-stage">
     <canvas ref={canvas} className="studio-canvas" aria-label="Escena 3D interactiva con nueve puestos" style={{visibility:failed?'hidden':'visible'}}/>
-    <div ref={labels} className="studio-labels">{team.map(r=><button type="button" key={r.id} data-seat={r.id} data-status={status[r.id]??'idle'} onClick={()=>setPicked(r.id)} className={'studio-seat'+(picked===r.id?' selected':'')} title={r.name}><i/>{r.name}</button>)}</div>
+    <div ref={labels} className="studio-labels">{team.map(r=><button type="button" key={r.id} data-seat={r.id} data-status={status[r.id]??'idle'} onClick={()=>setPicked(r.id)} className={'studio-seat'+(picked===r.id?' selected':'')} title={r.name}><i/>{r.name}</button>)}<button type="button" data-treasury className="studio-seat studio-treasury" data-kind={quota.kind} data-coins={quota.coins} onClick={()=>setQuotaOpen(v=>!v)} aria-expanded={quotaOpen} title="Cuota de Codex"><i/> {quota.label}</button></div>
     {!ready&&!failed&&<div className="studio-loading"><span/>Cargando oficina</div>}
-    {failed&&<div className="studio-fallback"><Monitor size={25}/><p>3D no disponible en este navegador.</p><div>{team.map(r=><button key={r.id} onClick={()=>setPicked(r.id)}>{r.name}</button>)}</div></div>}
+    {failed&&<div className="studio-fallback"><Monitor size={25}/><p>3D no disponible en este navegador.</p><button onClick={()=>setQuotaOpen(v=>!v)}>Cuota · {quota.label}</button><div>{team.map(r=><button key={r.id} onClick={()=>setPicked(r.id)}>{r.name}</button>)}</div></div>}
    </div>
    <div className="studio-bottom">
     <div className="studio-task"><span className={'studio-task-icon '+view.kind}><i/></span><div><small>{task?'FAC-'+task.id+' · '+task.project:'EQUIPO'}</small><strong>{view.label}</strong></div>{task&&snapshot.mode==='live'&&<a href={'/admin/factory?view=tasks&job='+task.id} aria-label="Ver tarea"><ChevronDown size={17}/></a>}</div>
     <div className="studio-camera">{watch&&<a className="studio-exit-watch" href="/admin/factory" aria-label="Volver a todas las tareas" title="Volver a todas las tareas"><X size={16}/></a>}<button type="button" onClick={()=>router.refresh()} aria-label="Actualizar" title="Actualizar"><RefreshCw size={17}/></button><button type="button" onClick={()=>scene.current?.reset()} aria-label="Restablecer cámara" title="Restablecer cámara"><RotateCcw size={17}/></button><button type="button" onClick={()=>setExpanded(v=>!v)} aria-label={expanded?'Salir de pantalla completa':'Ampliar oficina'} title="Ampliar oficina"><Maximize2 size={17}/></button></div>
    </div>
+   {quotaOpen&&<div className="studio-quota-detail"><div className="studio-quota-title"><strong>Cuota de Codex</strong><button type="button" aria-label="Cerrar cuota" onClick={()=>setQuotaOpen(false)}><X size={16}/></button></div><div className="studio-quota-balance">{quota.label}</div>{quota.reading?.data&&quota.kind!=='stale'&&quota.kind!=='unknown'&&quota.reading.data.windows.map((w,i)=><div key={i} className="studio-quota-window"><div><span>{w.minutes===300?'5 horas':w.minutes===10080?'Semanal':w.minutes?Math.round(w.minutes/60)+' h':'Límite '+(i+1)}</span><b>{(100-w.used_percent).toLocaleString('es-UY',{maximumFractionDigits:1})}%</b></div><div className="studio-quota-track"><i style={{width:(100-w.used_percent)+'%'}}/></div>{w.reset_at&&<small>Reinicio {new Date(w.reset_at*1000).toLocaleString('es-UY',{timeZone:'America/Montevideo',weekday:'short',hour:'2-digit',minute:'2-digit'})}</small>}</div>)}<small>{snapshot.mode==='demo'?'Valores simulados.':quota.kind==='blocked'&&!quota.reading?'El runner informó una pausa por cuota. No publicó porcentajes.':quota.kind==='unknown'||quota.kind==='stale'?'Esperando una lectura válida del runner.':'Última consulta; porcentaje del límite más restrictivo, no cantidad de tokens.'}</small>{quota.reading?.at&&<small>Consulta {new Date(quota.reading.at).toLocaleTimeString('es-UY',{timeZone:'America/Montevideo',hour:'2-digit',minute:'2-digit'})}</small>}</div>}
    {selected&&<div className="studio-selection"><div><span className="studio-selection-dot" style={{background:selected.color}}/><strong>{selected.name}</strong><small>{status[selected.id]==='working'?'Actividad observada':status[selected.id]==='observed'?'Actividad registrada':status[selected.id]==='paused'?'En pausa':status[selected.id]==='requested'?'Especialista solicitado':'Disponible como perfil'}</small></div><a className="studio-primary" href={'/admin/factory?view=new'+(selected.id==='orchestrator'?'':'&agent='+selected.id)}>Asignar tarea</a><button onClick={()=>setPicked(null)} aria-label="Cerrar selección"><X size={18}/></button></div>}
   </section>
   <footer className="studio-foot"><span><i/> 8 especialistas · Coordinación</span><span>{snapshot.mode==='demo'?'Simulación': 'Estados según último evento'}</span><a href={snapshot.mode==='demo'?'/admin/factory':'/admin/factory?mode=demo'}>{snapshot.mode==='demo'?'Volver al modo real':'Demo'}</a></footer>

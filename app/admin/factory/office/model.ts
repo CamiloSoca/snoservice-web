@@ -9,7 +9,7 @@ export const ROLES = [
  {id:'sno_devops',name:'DevOps',color:'#a1b96e',stage:'review',description:'Build e infraestructura'}
 ] as const
 export type Stage='analyze'|'develop'|'validate'|'review'|'blocked'|'paused'|'queued'|'unknown'
-export type Task={id:number;title:string;project:string;stage:Stage;at:string|null;reason:string|null;closed?:boolean;preferredRole?:string;attempts?:Attempt[]}
+export type Task={id:number;title:string;project:string;stage:Stage;at:string|null;reason:string|null;closed?:boolean;preferredRole?:string;attempts?:Attempt[];quota?:QuotaReading;quotaPause?:boolean}
 export type Snapshot={mode:'demo'|'live';connected:boolean;checkedAt:string|null;tasks:Task[]}
 export const STAGES:Record<Stage,string>={analyze:'Análisis',develop:'Desarrollo',validate:'Validación',review:'Revisión',blocked:'Bloqueada',paused:'Pausada',queued:'En cola',unknown:'Sin verificar'}
 const projects:Record<string,string>={maracana:'Maracaná',finanzas:'Finanzas',central:'SNOSERVICE'}
@@ -37,10 +37,10 @@ export function withEvents(task:Task,raw:unknown):Task{
    if(latest?.at&&Date.parse(latest.at)>Date.parse(x.created_at))continue
    // Never serialize arbitrary runner messages, PR URLs, prompts or credentials.
    const reason=e.stage==='paused'?(e.message.startsWith('Pendiente por cuota')?'Cuota de Codex':e.message.includes('revisión manual')?'Revisión manual':'Pausa registrada'):null
-   latest={...task,stage:e.stage as Stage,at:x.created_at,reason}
+   latest={...task,stage:e.stage as Stage,at:x.created_at,reason,quotaPause:e.stage==='paused'&&e.message.startsWith('Pendiente por cuota de Codex.')}
   }catch{}
  }
- return {...(latest??task),attempts:readAttempts(task.id,raw)}
+ return {...(latest??task),attempts:readAttempts(task.id,raw),quota:readQuota(task.id,raw)}
 }
 export const DEMO:Snapshot={mode:'demo',connected:false,checkedAt:null,tasks:[{id:1,title:'Catálogo comercial (simulado)',project:'Maracaná',stage:'develop',at:null,reason:null},{id:2,title:'Revisión de seguridad (simulada)',project:'Finanzas',stage:'validate',at:null,reason:null}]}
 export function roleState(role:typeof ROLES[number],snapshot:Snapshot,task:Task|undefined){
@@ -134,4 +134,53 @@ export function studioState(snapshot:Snapshot,watch?:number){
  else if(executing(task)){kind='working';label=STAGES[task.stage];seats.orchestrator='working'}
  else{kind='unknown';label='Último estado: '+STAGES[task.stage]}
  return {task,seats,kind,label,open:open.length}
+}
+
+export type QuotaWindow={used_percent:number;minutes:number|null;reset_at:number|null}
+export type QuotaReading={at:string;data:{checked_at:number;available:boolean;server_limit:boolean;windows:QuotaWindow[]}|null}
+export type Treasury={kind:'known'|'blocked'|'unknown'|'stale';percent:number|null;coins:number;label:string;reading?:QuotaReading}
+export const QUOTA_MARK='SNOSERVICE_FACTORY_QUOTA_V1\n'
+export function readQuota(issue:number,comments:unknown[]):QuotaReading|undefined{
+ let latest:QuotaReading|undefined
+ for(const raw of comments){
+  const x=record(raw)
+  if(!x||!own(x.user)||typeof x.body!=='string'||!x.body.startsWith(QUOTA_MARK)||x.body.length>3000||typeof x.created_at!=='string'||!Number.isFinite(Date.parse(x.created_at)))continue
+  try{
+   const e=record(JSON.parse(x.body.slice(QUOTA_MARK.length)))
+   if(!e||e.issue!==issue)continue
+   if(latest&&Date.parse(latest.at)>=Date.parse(x.created_at))continue
+   if(e.quota===null){latest={at:x.created_at,data:null};continue}
+   const q=record(e.quota)
+   if(!q||!count(q.checked_at,4102444800)||Math.abs(Date.parse(x.created_at)-q.checked_at*1000)>300_000||typeof q.available!=='boolean'||typeof q.server_limit!=='boolean'||!Array.isArray(q.windows)||q.windows.length<1||q.windows.length>2)continue
+   const windows:QuotaWindow[]=[]
+   for(const raw of q.windows){
+    const w=record(raw)
+    if(!w||typeof w.used_percent!=='number'||!Number.isFinite(w.used_percent)||w.used_percent<0||w.used_percent>100||!(w.minutes===null||(count(w.minutes,525600)&&w.minutes>0))||!(w.reset_at===null||(count(w.reset_at,4102444800)&&w.reset_at>0)))break
+    windows.push({used_percent:w.used_percent,minutes:w.minutes as number|null,reset_at:w.reset_at as number|null})
+   }
+   if(windows.length!==q.windows.length||q.available!==(windows.every(w=>w.used_percent<100)&&!q.server_limit))continue
+   latest={at:x.created_at,data:{checked_at:q.checked_at,available:q.available,server_limit:q.server_limit,windows}}
+  }catch{}
+ }
+ return latest
+}
+export function treasuryState(snapshot:Snapshot):Treasury{
+ const unknown:Treasury={kind:'unknown',percent:null,coins:0,label:'Sin lectura'}
+ if(snapshot.mode==='demo')return {kind:'known',percent:65,coins:13,label:'65% · demo',reading:{at:'',data:{checked_at:0,available:true,server_limit:false,windows:[{used_percent:35,minutes:300,reset_at:null},{used_percent:20,minutes:10080,reset_at:null}]}}}
+ if(!snapshot.connected)return unknown
+ const now=Date.parse(snapshot.checkedAt??'')
+ if(!Number.isFinite(now))return unknown
+ const latest=snapshot.tasks.flatMap(t=>t.quota?[t.quota]:[]).sort((a,b)=>Date.parse(b.at)-Date.parse(a.at))[0]
+ const lastTask=snapshot.tasks.filter(t=>!t.closed&&t.at).sort((a,b)=>Date.parse(b.at!)-Date.parse(a.at!))[0]
+ const age=(at:string)=>now-Date.parse(at)
+ // Legacy quota pauses establish a restriction, not a percentage or token count.
+ const paused=lastTask?.quotaPause===true&&lastTask.stage==='paused'&&lastTask.at&&age(lastTask.at)>=0&&age(lastTask.at)<=35*60_000
+ if(paused&&(!latest||Date.parse(lastTask.at!)>Date.parse(latest.at)))return {kind:'blocked',percent:null,coins:0,label:'Cuota en pausa'}
+ if(!latest)return unknown
+ if(!latest.data)return {...unknown,reading:latest}
+ const q=latest.data
+ if(age(latest.at)<0||age(latest.at)>35*60_000||q.windows.some(w=>w.reset_at!==null&&w.reset_at*1000<=now))return {kind:'stale',percent:null,coins:0,label:'Lectura vencida',reading:latest}
+ if(!q.available)return {kind:'blocked',percent:q.windows.some(w=>w.used_percent===100)?0:null,coins:0,label:'Cuota en pausa',reading:latest}
+ const percent=Math.min(...q.windows.map(w=>100-w.used_percent))
+ return {kind:'known',percent,coins:Math.max(1,Math.min(20,Math.ceil(percent/5))),label:percent<1?'<1%':Math.floor(percent)+'%',reading:latest}
 }

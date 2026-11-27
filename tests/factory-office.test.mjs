@@ -100,3 +100,22 @@ test('new requests return to the office and watching a queued task does not fake
  const watched=m.studioState(snapshot,16)
  assert.equal(watched.task.id,16);assert.equal(watched.seats.sno_qa,'requested');assert.equal(watched.seats.orchestrator,'idle')
 })
+
+test('treasury uses limiting quota window and never invents tokens',()=>{
+ const now='2026-11-27T15:55:00Z',unix=Date.parse(now)/1000
+ const q={checked_at:unix,available:true,server_limit:false,windows:[{used_percent:25,minutes:300,reset_at:unix+600},{used_percent:80,minutes:10080,reset_at:unix+3600}],secret:'private'}
+ const comment={created_at:now,user:{login:'CamiloSoca'},body:m.QUOTA_MARK+JSON.stringify({issue:16,quota:q})}
+ const task=m.withEvents(m.parseTask(issue()),[comment])
+ const snap={mode:'live',connected:true,checkedAt:now,tasks:[task]}
+ assert.equal(m.treasuryState(snap).percent,20)
+ assert.equal(m.treasuryState(snap).coins,4)
+ assert.equal(JSON.stringify(task.quota).includes('private'),false)
+ assert.equal(m.readQuota(17,[comment]),undefined)
+ assert.equal(m.readQuota(16,[{...comment,user:{login:'attacker'}}]),undefined)
+ assert.equal(m.treasuryState({...snap,checkedAt:'2026-11-27T16:20:00Z'}).kind,'stale')
+ const legacy={...task,quota:undefined,stage:'paused',at:now,quotaPause:true}
+ assert.deepEqual(m.treasuryState({...snap,tasks:[legacy]}),{kind:'blocked',percent:null,coins:0,label:'Cuota en pausa'})
+ assert.equal(m.treasuryState({...snap,tasks:[{...legacy,quotaPause:false}]}).kind,'unknown')
+ const unknown={...comment,created_at:'2026-11-27T15:55:01Z',body:m.QUOTA_MARK+JSON.stringify({issue:16,quota:null})}
+ assert.equal(m.readQuota(16,[comment,unknown]).data,null)
+})
