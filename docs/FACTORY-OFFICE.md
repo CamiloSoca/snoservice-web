@@ -26,3 +26,14 @@ Añadir un protocolo versionado de telemetría por agente con id de tarea, id de
 ## Reversión
 
 No fusionar ni desplegar hasta revisión. Para descartar, cerrar la PR y borrar su rama. No requiere cambios de datos ni de configuración del runner.
+
+## Hermes3D Studio original — demo local opcional
+
+Además de la oficina web integrada, el bridge local implementa el subconjunto de lectura del contrato custom de Hermes3D (GET /health, /state, /registry). Los ocho perfiles son sintéticos, no sesiones activas ni modelos; todos los POST (incluido chat) se rechazan. No lee la cola ni credenciales. Node 22.18+ requerido.
+
+1. En un checkout separado de esta rama, ejecutar `node scripts/hermes-office-bridge.mjs` (no abrir ni modificar el checkout del runner activo).
+2. En otro directorio clonar [Hermes3D](https://github.com/iamlukethedev/Hermes3D), hacer checkout de `beb76292747b816ef317aa6f9a3992e0014f81d9`, revisar las dependencias e instalar con el lockfile existente. No proporcionar tokens de GitHub, Supabase ni Codex.
+3. Iniciar Studio únicamente en loopback, con `HOST=127.0.0.1`, `CUSTOM_RUNTIME_ALLOWLIST=127.0.0.1` y `UPSTREAM_ALLOWLIST=127.0.0.1`. En Windows PowerShell: `$env:HOST='127.0.0.1'; $env:CUSTOM_RUNTIME_ALLOWLIST='127.0.0.1'; $env:UPSTREAM_ALLOWLIST='127.0.0.1'; npm run dev`. No exponer túneles ni publicar Studio.
+4. En Studio elegir Local runtime o Custom backend, apuntar a `http://127.0.0.1:7770`. La UI upstream puede mostrar botones de chat por su matriz de capacidades estática: no funcionarán; el bridge responde 405. Validar visualmente en local, no se ha ejecutado Studio original en esta entrega.
+
+El bridge solo demuestra compatibilidad del contrato de perfiles con el proveedor fijado. No sustituye la conexión web real de solo lectura ni autentica sesiones de agentes. La integración operativa de Studio requerirá adaptar las capacidades declaradas y eventos reales.
