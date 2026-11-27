@@ -12,7 +12,7 @@ const C={floor:'#727976',wall:'#323a38',wallDark:'#252d2b',base:'#171d1c',edge:'
 export function createStudio(canvas:HTMLCanvasElement,labels:HTMLElement,initial:SeatStatus,onReady:()=>void,onError:()=>void){
  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'low-power'})
  renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.65))
- renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap
+ renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true
  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.25
  const scene=new THREE.Scene()
  const camera=new THREE.OrthographicCamera(-14,14,10,-10,.1,160)
@@ -71,7 +71,9 @@ export function createStudio(canvas:HTMLCanvasElement,labels:HTMLElement,initial
  box(scene,-10.4,1.46,0,.27,2.9,16.05,C.wallDark,.04)
  for(let i=0;i<4;i++){const z=-5.7+i*3.8;box(scene,-10.23,1.66,z,.055,1.7,2.8,'#667774',.035);box(scene,-10.18,1.66,z,.025,1.55,2.62,'#839893',.01)}
  box(scene,0,2.12,-7.8,7.6,1.46,.18,'#1e2825',.05)
- const logoMat=emissive(C.green,.9);box(scene,-3.2,2.12,-7.67,.16,.74,.03,C.green,.03,false,logoMat)
+ const logoTexture=new THREE.TextureLoader().load('/logo.png',()=>{dirty=true});logoTexture.colorSpace=THREE.SRGBColorSpace
+ const logoMaterial=new THREE.MeshBasicMaterial({map:logoTexture,transparent:true,depthWrite:false})
+ const logo=new THREE.Mesh(new THREE.PlaneGeometry(.83,.83),logoMaterial);logo.position.set(-3.02,2.12,-7.65);scene.add(logo)
  sign('SNOSERVICE',6.5,1.6,.45,2.12,-7.68,'#e8f5ec')
  // Warm work pods and green circulation strip.
  box(scene,0,.026,-3.0,19.8,.045,3.9,'#46504d',.08,false)
@@ -135,7 +137,8 @@ export function createStudio(canvas:HTMLCanvasElement,labels:HTMLElement,initial
  for(const [x,z,s] of [[-9.55,-7.05,1.25],[9.45,-7.03,1.25],[-9.55,3.8,1],[.15,7.25,1.0],[9.45,3.9,.95]])plant(x,z,s)
  // Soft ground shadow outside the slab.
  const ground=new THREE.Mesh(new THREE.PlaneGeometry(150,150),new THREE.ShadowMaterial({opacity:.18}));ground.rotation.x=-Math.PI/2;ground.position.y=-1.10;ground.receiveShadow=true;scene.add(ground)
- let statuses=initial,frame=0,disposed=false,last=0
+ let statuses=initial,frame=0,disposed=false,last=0,dirty=true,rendered=false
+ const markDirty=()=>{dirty=true};controls.addEventListener('change',markDirty)
  const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches
  const pos=new THREE.Vector3()
  let initialSize=true
@@ -143,7 +146,7 @@ export function createStudio(canvas:HTMLCanvasElement,labels:HTMLElement,initial
   const w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return
   const aspect=w/h;const half=Math.max(10.5,13.9/aspect)
   camera.left=-half*aspect;camera.right=half*aspect;camera.top=half;camera.bottom=-half;camera.updateProjectionMatrix()
-  renderer.setSize(w,h,false);if(initialSize){camera.zoom=aspect<.9?1.13:1;camera.updateProjectionMatrix();initialSize=false}
+  renderer.setSize(w,h,false);if(initialSize){camera.zoom=aspect<.9?.94:1;camera.updateProjectionMatrix();initialSize=false}dirty=true
  }
  const observer=new ResizeObserver(resize);observer.observe(canvas);resize()
  function updateLabels(){
@@ -157,8 +160,11 @@ export function createStudio(canvas:HTMLCanvasElement,labels:HTMLElement,initial
  }
  function animate(ms:number){
   if(disposed)return;frame=requestAnimationFrame(animate)
-  if(document.hidden||ms-last<33)return
-  last=ms;const time=ms*.001;controls.update()
+  if(document.hidden||ms-last<40)return
+  controls.update()
+  const activeMotion=!reduce&&Object.values(statuses).includes('working')
+  if(!dirty&&!activeMotion)return
+  dirty=false;last=ms;const time=ms*.001
   for(const a of avatars){
    const state=statuses[a.id]??'idle',active=state==='working'
    const color=active?'#40ee83':state==='paused'?'#e0ab61':state==='observed'?'#6daeb0':state==='requested'?'#a0b9df':'#65736a'
@@ -166,12 +172,12 @@ export function createStudio(canvas:HTMLCanvasElement,labels:HTMLElement,initial
    a.screen.color.set(active?'#376d50':'#263e35');a.screen.emissive.set(active?'#2b7950':'#1a3127');a.screen.emissiveIntensity=active?.9:.27
    a.left.rotation.x=active?-.35+(reduce?0:Math.sin(time*7+a.index)*.15):.18
    a.right.rotation.x=active?-.35+(reduce?0:Math.cos(time*7+a.index)*.15):.18
-   a.body.rotation.y=active?0:(reduce?0:Math.sin(time*.8+a.index)*.035)
+   a.body.rotation.y=0
   }
-  renderer.render(scene,camera);updateLabels()
+  try{renderer.render(scene,camera);updateLabels();if(!rendered){rendered=true;onReady()}}catch{cancelAnimationFrame(frame);onError()}
  }
  function lost(e:Event){e.preventDefault();onError()}
  canvas.addEventListener('webglcontextlost',lost)
- frame=requestAnimationFrame(animate);onReady()
- return {setStatus(next:SeatStatus){statuses=next},reset(){controls.target.set(0,.1,0);camera.position.set(16,20,25);camera.zoom=canvas.clientWidth/canvas.clientHeight<.9?1.13:1;camera.updateProjectionMatrix();controls.update()},dispose(){disposed=true;cancelAnimationFrame(frame);observer.disconnect();controls.dispose();canvas.removeEventListener('webglcontextlost',lost);const materials=new Set<THREE.Material>(),geometry=new Set<THREE.BufferGeometry>();scene.traverse(o=>{if(o instanceof THREE.Mesh){geometry.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m)}});for(const g of geometry)g.dispose();for(const m of materials){if('map' in m&&m.map instanceof THREE.Texture)m.map.dispose();m.dispose()}for(const m of mats.values())m.dispose();for(const g of geos.values())g.dispose();renderer.dispose()}}
+ frame=requestAnimationFrame(animate)
+ return {setStatus(next:SeatStatus){statuses=next;dirty=true},reset(){controls.target.set(0,.1,0);camera.position.set(16,20,25);camera.zoom=canvas.clientWidth/canvas.clientHeight<.9?.94:1;camera.updateProjectionMatrix();controls.update();dirty=true},dispose(){disposed=true;cancelAnimationFrame(frame);observer.disconnect();controls.removeEventListener('change',markDirty);controls.dispose();canvas.removeEventListener('webglcontextlost',lost);const materials=new Set<THREE.Material>(),geometry=new Set<THREE.BufferGeometry>();scene.traverse(o=>{if(o instanceof THREE.Mesh){geometry.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m)}});for(const g of geometry)g.dispose();for(const m of materials){if('map' in m&&m.map instanceof THREE.Texture)m.map.dispose();m.dispose()}for(const m of mats.values())m.dispose();for(const g of geos.values())g.dispose();renderer.dispose()}}
 }

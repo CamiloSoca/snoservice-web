@@ -13,11 +13,12 @@ for(const [name,engine,options] of [
  try{
   const page=await browser.newPage(options),errors=[]
   page.on('pageerror',error=>errors.push(error.message))
+  page.on('console',msg=>{if(msg.type()==='error')errors.push(msg.text())})
   await page.goto(base,{waitUntil:'networkidle',timeout:60000})
   await page.getByRole('heading',{name:'Factory.'}).waitFor()
   await page.waitForFunction(()=>['webgl','fallback'].includes(document.querySelector('.studio-viewport')?.dataset.renderer),{},{timeout:30000})
   const renderer=await page.locator('.studio-viewport').getAttribute('data-renderer')
-  if(name==='desktop')assert.equal(renderer,'webgl','Desktop must render actual 3D')
+  assert.equal(renderer,'webgl',name+' must render actual 3D in the CI browser')
   if(renderer==='webgl'){
    await page.waitForFunction(()=>Array.from(document.querySelectorAll('.studio-seat')).some(el=>el.style.visibility==='visible'))
    assert.equal(await page.locator('.studio-seat').count(),9)
