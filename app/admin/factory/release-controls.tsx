@@ -5,7 +5,7 @@ import type {ReleaseResult} from './release-service'
 
 type Action='status'|'publish'|'promote'
 export default function ReleaseControls({issue,project,head,enabled,visual,run}:{issue:number;project:string;head:string;enabled:boolean;visual:boolean;run:(issue:number,head:string,action:Action)=>Promise<ReleaseResult>}){
- const [result,setResult]=useState<ReleaseResult>(enabled?{state:'review',message:'Consultá el estado y revisá los cambios antes de publicar.'}:{state:'disabled',message:'Faltan las credenciales de publicación de GitHub y Vercel.'})
+ const [result,setResult]=useState<ReleaseResult>(enabled?{state:'building',message:'Consultando el estado de la entrega…'}:{state:'disabled',message:'Faltan FACTORY_RELEASE_GITHUB_TOKEN y FACTORY_RELEASE_VERCEL_TOKEN en producción. Configuralos como variables sensibles de servidor.'})
  const [busy,setBusy]=useState(false)
  const lock=useRef(false)
  async function check(action:Action){
@@ -16,6 +16,7 @@ export default function ReleaseControls({issue,project,head,enabled,visual,run}:
   catch{setResult({state:'blocked',message:'No se pudo confirmar la operación. Verificá el estado antes de volver a publicar.'})}
   finally{lock.current=false;setBusy(false)}
  }
+ useEffect(()=>{if(enabled)void check('status')},[enabled,issue,head])
  useEffect(()=>{
   if(!enabled||result.state!=='building')return
   const timer=window.setInterval(()=>void check('status'),12000)
