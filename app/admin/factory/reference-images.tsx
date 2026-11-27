@@ -3,7 +3,7 @@ import {useRef,useState} from 'react'
 import {ImagePlus,X} from 'lucide-react'
 
 const MAX=3, LIMIT=200000
-type RefImage={name:string;data:string;size:number}
+export type RefImage={name:string;data:string;size:number}
 async function compress(file:File):Promise<RefImage>{
  if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>15_000_000)throw Error('Usá PNG, JPG o WebP de hasta 15 MB.')
  // The admin CSP permits data: images but intentionally disallows blob:.
@@ -39,24 +39,23 @@ async function compress(file:File):Promise<RefImage>{
   throw Error('No se pudo comprimir la imagen al tamaño permitido.')
  }
 }
-export default function ReferenceImages(){
+export default function ReferenceImages({images,onChange,onBusy,disabled=false}:{images:RefImage[];onChange:(images:RefImage[])=>void;onBusy:(busy:boolean)=>void;disabled?:boolean}){
  const input=useRef<HTMLInputElement>(null)
- const [images,setImages]=useState<RefImage[]>([])
  const [busy,setBusy]=useState(false)
  const [error,setError]=useState('')
  async function add(files:FileList|null){
-  if(!files||busy)return
+  if(!files||busy||disabled)return
   if(files.length+images.length>MAX){setError('Podés adjuntar hasta tres imágenes.');if(input.current)input.current.value='';return}
-  setBusy(true);setError('')
-  try{const next:RefImage[]=[];for(const file of Array.from(files))next.push(await compress(file));setImages(old=>[...old,...next])}
+  setBusy(true);onBusy(true);setError('')
+  try{const next:RefImage[]=[];for(const file of Array.from(files))next.push(await compress(file));onChange([...images,...next])}
   catch(e){setError(e instanceof Error?e.message:'No se pudo preparar la imagen.')}
-  finally{setBusy(false);if(input.current)input.current.value=''}
+  finally{setBusy(false);onBusy(false);if(input.current)input.current.value=''}
  }
  return <fieldset style={{border:'1px solid #ffffff20',borderRadius:12,padding:12,minWidth:0,margin:0}}>
   <legend style={{padding:'0 5px',fontWeight:600}}>Referencias visuales (opcional)</legend>
   <p className="f2-note">Hasta 3 imágenes. Se comprimen localmente y se envían a Codex como contexto de diseño. No adjuntes datos personales ni credenciales.</p>
   <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={e=>void add(e.currentTarget.files)}/>
-  <button type="button" className="f2-secondary" disabled={busy||images.length>=MAX} onClick={()=>input.current?.click()}><ImagePlus size={18}/> {busy?'Preparando imágenes…':'Adjuntar imágenes'} ({images.length}/{MAX})</button>
+  <button type="button" className="f2-secondary" disabled={disabled||busy||images.length>=MAX} onClick={()=>input.current?.click()}><ImagePlus size={18}/> {busy?'Preparando imágenes…':'Adjuntar imágenes'} ({images.length}/{MAX})</button>
   {busy&&<input type="hidden" name="references_pending" value="1"/>}
   {error&&<p role="alert" className="f2-note">{error}</p>}
   <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))',gap:8,marginTop:8}}>
@@ -65,7 +64,7 @@ export default function ReferenceImages(){
     <img src={'data:image/jpeg;base64,'+image.data} alt={'Referencia '+(i+1)} style={{width:'100%',height:100,objectFit:'contain',borderRadius:6}}/>
     <p style={{fontSize:11,overflowWrap:'anywhere',margin:'4px 0'}}>{image.name} · {Math.ceil(image.size/1024)} KB</p>
     <input type="hidden" name="reference" value={image.data}/>
-    <button type="button" className="f2-secondary" aria-label={'Quitar referencia '+(i+1)} disabled={busy} onClick={()=>setImages(old=>old.filter((_,j)=>i!==j))}><X size={14}/> Quitar</button>
+    <button type="button" className="f2-secondary" aria-label={'Quitar referencia '+(i+1)} disabled={disabled||busy} onClick={()=>onChange(images.filter((_,j)=>i!==j))}><X size={14}/> Quitar</button>
    </div>)}
   </div>
  </fieldset>
