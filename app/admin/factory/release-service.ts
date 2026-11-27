@@ -61,7 +61,7 @@ export async function release(d:Delivery,action:'status'|'publish'|'promote'):Pr
  try{
   // Verify project production branch explicitly; never promote a non-production branch.
   const project=await vercel('/v9/projects/'+t.project)
-  if(project?.id!==t.project||project?.link?.productionBranch!==t.base)fail('La rama productiva de Vercel no coincide con Factory.')
+  if(project?.id!==t.project||project?.link?.productionBranch!==t.base||project?.link?.type!=='github'||String(project?.link?.org).toLowerCase()!=='camilosoca'||String(project?.link?.repo).toLowerCase()!==t.repo.toLowerCase())fail('La rama productiva de Vercel no coincide con Factory.')
   let p=await validate(t,d)
   if(p.merged===true){
    if(!sha(p.merge_commit_sha))fail('No se pudo identificar el commit fusionado.')
@@ -73,7 +73,8 @@ export async function release(d:Delivery,action:'status'|'publish'|'promote'):Pr
     const id=candidate?.uid??candidate?.id
     if(!isDeployment(id)||await head(t)!==commit)fail('El commit de producción cambió. No se promovió.')
     await vercel('/v10/projects/'+t.project+'/promote/'+id,{},'POST',{})
-    return await current(t,commit)
+    const verified=await current(t,commit)
+    return verified.state==='promote'?{state:'building',message:'Activación solicitada. Pendiente de confirmar la asignación del dominio.',commit}:verified
    }
    return state
   }
